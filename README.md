@@ -33,7 +33,7 @@ The interface is optimized for smartphones and tablets, so you can check results
 •	Real‑time results directly on‑trail
 
 
-# Build. Ride. Compete. Repeat.  
+### Build. Ride. Compete. Repeat.  
 🎯 For tech‑loving riders & data‑hungry shredders  
 🛠️ Powered by Heltec LoRa V3 + WiFi  
 🚴‍♀️ Status: DIY MTB Timing Adventure  
