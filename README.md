@@ -1,4 +1,4 @@
-##🚵‍♂️ MTB LoRa Time‑Tracker  
+##🚵‍♂️ MTB LoRa Time‑Tracker##
 
 Wireless MTB timing made simple – ride, race, and measure!
 This project turns two Heltec LoRa V3 boards into a compact MTB timing system that precisely measures your ride time from start to finish.  
