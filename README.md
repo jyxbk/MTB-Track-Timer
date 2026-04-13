@@ -9,10 +9,10 @@ The interface is optimized for smartphones and tablets, so you can check results
 ## ⚙️ Features
 
 🕓 Start‑to‑Finish timing (no lap splits yet) <br>
-🆚 Duel Mode for two riders at once <br>
+🆚 Duel Mode betwenn Riders <br>
 📱 Mobile‑friendly web interface <br>
-🔌 Super easy setup – perfect for beginners <br>
-🌐 Local WiFi interface (`http://192.168.4.1`) <br>
+🔌 Super easy setup <br>
+🌐 Local WiFi interface <br>
 🛰️ Reliable LoRa communication between nodes <br>
 
 ## 🔧 Setup
