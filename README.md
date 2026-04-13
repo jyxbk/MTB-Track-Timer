@@ -16,8 +16,8 @@ The interface is optimized for smartphones and tablets, so you can check results
 🛰️ Reliable LoRa communication between nodes <br>
 
 ## 🔧 Setup
-1.	Flash Node 1 with `Node-1.ino`
-2.	Flash Node 2 with `Node-2.ino`
+1.	Flash Start Node 1 with `Node-1.ino`
+2.	Flash Stop Node 2 with `Node-2.ino`
 3.	Power up both devices and place them on your trail (start & finish)
 4.	Connect your phone or tablet to the WiFi hotspot
 5.	Open `http://192.168.4.1` in your browser
