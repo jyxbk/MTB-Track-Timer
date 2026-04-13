@@ -8,12 +8,12 @@ The interface is optimized for smartphones and tablets, so you can check results
 
 # ⚙️ Features
 
-•	🕓 Start‑to‑Finish timing (no lap splits yet)
-•	🆚 Duel Mode for two riders at once
-•	📱 Mobile‑friendly web interface
-•	🔌 Super easy setup – perfect for beginners
-•	🌐 Local WiFi interface (`http://192.168.4.1`)
-•	🛰️ Reliable LoRa communication between nodes
+1.	🕓 Start‑to‑Finish timing (no lap splits yet)
+2.	🆚 Duel Mode for two riders at once
+3.	📱 Mobile‑friendly web interface
+4.	🔌 Super easy setup – perfect for beginners
+5.	🌐 Local WiFi interface (`http://192.168.4.1`)
+6.	🛰️ Reliable LoRa communication between nodes
 
 # 🔧 Setup
 1.	Flash Node 1 with `Node-1.ino`
@@ -23,19 +23,19 @@ The interface is optimized for smartphones and tablets, so you can check results
 5.	Open `http://192.168.4.1` in your browser
 
 # 🧰 Requirements
-•	2× Heltec V3 boards
-•	2× NO push buttons with wires
-•	2× Cases (3D print model in progress)
+1. 2× Heltec V3 boards
+2. 2× NO push buttons with wires
+3. 2× Cases (3D print model in progress)
 
 # 🔥 Why build it
-•	Fully offline – no internet needed
-•	Minimal setup time
-•	Real‑time results directly on‑trail
+1. Fully offline – no internet needed
+2. Minimal setup time
+3. Real‑time results directly on‑trail
 
 
-### Build. Ride. Compete. Repeat.  
-🎯 For tech‑loving riders & data‑hungry shredders  
-🛠️ Powered by Heltec LoRa V3 + WiFi  
-🚴‍♀️ Status: DIY MTB Timing Adventure  
-🌍 Language: English 
+### Build. Ride. Compete. Repeat.  <br>
+🎯 For tech‑loving riders & data‑hungry shredders  <br>
+🛠️ Powered by Heltec LoRa V3 + WiFi  <br>
+🚴‍♀️ Status: DIY MTB Timing Adventure  <br>
+🌍 Language: English <br>
 
