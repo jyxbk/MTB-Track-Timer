@@ -8,12 +8,12 @@ The interface is optimized for smartphones and tablets, so you can check results
 
 # ⚙️ Features
 
-1.	🕓 Start‑to‑Finish timing (no lap splits yet)
-2.	🆚 Duel Mode for two riders at once
-3.	📱 Mobile‑friendly web interface
-4.	🔌 Super easy setup – perfect for beginners
-5.	🌐 Local WiFi interface (`http://192.168.4.1`)
-6.	🛰️ Reliable LoRa communication between nodes
+🕓 Start‑to‑Finish timing (no lap splits yet) <br>
+🆚 Duel Mode for two riders at once <br>
+📱 Mobile‑friendly web interface <br>
+🔌 Super easy setup – perfect for beginners <br>
+🌐 Local WiFi interface (`http://192.168.4.1`) <br>
+🛰️ Reliable LoRa communication between nodes <br>
 
 # 🔧 Setup
 1.	Flash Node 1 with `Node-1.ino`
@@ -23,14 +23,14 @@ The interface is optimized for smartphones and tablets, so you can check results
 5.	Open `http://192.168.4.1` in your browser
 
 # 🧰 Requirements
-1. 2× Heltec V3 boards
-2. 2× NO push buttons with wires
-3. 2× Cases (3D print model in progress)
+2× Heltec V3 boards <br>
+2× NO push buttons with wires <br>
+2× Cases (3D print model in progress) <br>
 
 # 🔥 Why build it
-1. Fully offline – no internet needed
-2. Minimal setup time
-3. Real‑time results directly on‑trail
+Fully offline – no internet needed <br>
+Minimal setup time <br>
+Real‑time results directly on‑trail <br>
 
 
 ### Build. Ride. Compete. Repeat.  <br>
