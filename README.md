@@ -37,5 +37,5 @@ Real‑time results directly on‑trail <br>
 🎯 For tech‑loving riders & data‑hungry shredders  <br>
 🛠️ Powered by Heltec LoRa V3 + WiFi  <br>
 🚴‍♀️ Status: DIY MTB Timing Adventure  <br>
-🌍 Language: English <br>
+🌍 Language: German (English in progress) <br>
 
