@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MTB Timer – UI Preview</title>
+<style>
+/* ── Reset & Base ─────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#0a0a0a;color:#eee;padding:16px;padding-bottom:80px;max-width:500px;min-height:100vh}
+h1{color:#f0a500;margin:0 0 12px;font-size:1.3em}
+
+/* ── Cards ────────────────────────────────────────────────── */
+.c{background:#1c1c1e;border-radius:16px;padding:16px;margin-bottom:12px}
+.lb{color:#555;font-size:.72em;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
+.row{display:flex;justify-content:space-between;align-items:center}
+.bdg{padding:4px 14px;border-radius:20px;font-weight:bold;font-size:.82em}
+.si{background:#0d1f0d;color:#4caf50}
+.sr{background:#221500;color:#ff9800}
+.sd{background:#0d1525;color:#64b5f6}
+.se{background:#200d0d;color:#f44336}
+.batw{color:#ffcc00}.batc{color:#ff4444;font-weight:bold}
+
+/* ── Typography ───────────────────────────────────────────── */
+.big{font-size:2.8em;font-weight:bold;font-variant-numeric:tabular-nums;letter-spacing:.02em;line-height:1.15}
+.bc{color:#f0a500}
+.half{display:flex;gap:12px}.half .c{flex:1;margin-bottom:0}
+.md{font-size:1.5em;font-weight:bold;font-variant-numeric:tabular-nums}
+.sm{color:#555;font-size:.78em}
+.ok{color:#4caf50}.w{color:#ff9800}.e{color:#f44336}
+
+/* ── Signal-Bars ──────────────────────────────────────────── */
+.sk{display:inline-flex;align-items:flex-end;gap:3px;height:16px;vertical-align:middle}
+.sb{width:5px;border-radius:2px 2px 0 0}
+.on{background:#4caf50}.off{background:#252525}
+
+/* ── Table ────────────────────────────────────────────────── */
+table{width:100%;border-collapse:collapse;margin-top:6px}
+th{color:#444;font-size:.7em;text-transform:uppercase;letter-spacing:.06em;padding:3px 0 6px;border-bottom:1px solid #2a2a2a}
+td{padding:6px 2px;border-bottom:1px solid #1c1c1e;font-size:.88em}
+.rk{color:#333;width:22px}
+.nm{color:#aaa;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dt{color:#555}
+.r1 td{color:#f0a500;font-weight:bold}.r2 td{color:#ccc}.r3 td{color:#cd7f32}
+
+/* ── Buttons ──────────────────────────────────────────────── */
+.btn{display:inline-block;background:#2a2a2c;color:#888;padding:12px 20px;border-radius:12px;text-decoration:none;font-size:.85em;border:none;margin-top:10px;cursor:pointer}
+.cbtn{background:#2a0d0d;color:#f44336;display:block;text-align:center;margin-bottom:10px}
+.dbtn{display:block;text-align:center;background:#0d1f0d;color:#4caf50;border:1px solid #1a3a1a;padding:10px;border-radius:12px;text-decoration:none;font-size:.9em;font-weight:bold;margin-bottom:10px}
+.sbtn{background:#f0a500;color:#000;border:none;border-radius:14px;padding:14px 20px;font-weight:bold;font-size:1em;cursor:pointer;margin-top:14px;width:100%}
+
+/* ── Live-Indikator ───────────────────────────────────────── */
+.ld{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:6px;vertical-align:middle;transition:background .4s}
+.ld.on{background:#4caf50}.ld.off{background:#f44336}
+
+/* ── Flash-Animation ─────────────────────────────────────── */
+@keyframes fl{from{background:#0d2a0d}to{background:transparent}}
+.new-row{animation:fl 1.8s ease-out}
+
+/* ── Tabs ─────────────────────────────────────────────────── */
+.tab-pane{display:none}.tab-pane.act{display:block}
+
+/* ── Bottom Navigation ────────────────────────────────────── */
+.bnav{position:fixed;bottom:0;left:0;right:0;background:rgba(18,18,18,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid #2a2a2a;display:flex;padding:6px 0 env(safe-area-inset-bottom,6px);z-index:100;max-width:500px}
+.bni{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;color:#555;font-size:.62em;padding:6px 2px;cursor:pointer;font-family:inherit;transition:color .15s;line-height:1.2}
+.bni.active{color:#f0a500}
+.bni svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* ── iOS Grouped Settings ─────────────────────────────────── */
+.sg{background:#1c1c1e;border-radius:16px;margin-bottom:12px;overflow:hidden}
+.sr2{display:flex;flex-direction:column;padding:10px 16px;border-bottom:1px solid #2a2a2c}
+.sr2:last-child{border-bottom:none}
+.sl{display:flex;justify-content:space-between;align-items:center}
+.slb{font-size:.88em;color:#ddd}
+.sg input[type=number],.sg input[type=text],.sg input[type=password]{background:transparent;border:none;color:#f0a500;font-size:.9em;text-align:right;width:90px;outline:none;font-family:inherit}
+.sg input[type=range]{width:100%;accent-color:#f0a500;margin-top:8px}
+.sg input[type=radio]{accent-color:#f0a500}
+.sg .srow{display:flex;gap:16px;margin-top:6px}
+.sg .srow label{display:flex;align-items:center;gap:6px;color:#aaa;font-size:.9em}
+.shdr{color:#f0a500;font-size:.8em;font-weight:bold;margin:16px 0 6px;padding-bottom:4px;border-bottom:1px solid #222}
+.hint{color:#383838;font-size:.68em;margin-top:3px;display:block}
+
+/* ── Sonstiges ────────────────────────────────────────────── */
+.fahr{display:inline-block;background:#2a2a2c;color:#555;border-radius:4px;font-size:.7em;padding:1px 5px;margin-left:4px;vertical-align:middle}
+.dev-row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.dev-b{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:12px;font-size:.72em;background:#111;border:1px solid #1f1f1f}
+.dev-b .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.mbtns{display:flex;gap:8px;margin-bottom:12px}
+.mbtn{flex:1;display:block;text-align:center;padding:14px 8px;border-radius:12px;text-decoration:none;font-size:.85em;font-weight:bold;border:1px solid #232323;min-height:44px}
+.mbtn-l{background:#0d1525;color:#64b5f6;border-color:#1a2a3a}
+.mbtn-d{background:#1a1000;color:#f0a500;border-color:#2a2000}
+.dcard{border-left:3px solid #f0a500}
+.dname{font-size:1.15em;font-weight:bold;margin:4px 0}
+.dnext{color:#888;font-size:.82em;margin-top:4px}
+.toast{border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:.85em}
+.tok{background:#1a2a1a;color:#4caf50;border:1px solid #2a4a2a}
+
+/* ── Preview-Banner ───────────────────────────────────────── */
+.preview-banner{background:#1a1a00;border:1px solid #3a3a00;color:#aa9900;border-radius:12px;padding:8px 14px;margin-bottom:12px;font-size:.78em;text-align:center}
+</style>
+</head>
+<body>
+
+<!-- Preview-Hinweis -->
+<div class="preview-banner">&#128064; UI-Vorschau – statische Demo mit Beispieldaten (kein ESP32 nötig)</div>
+
+<h1>&#9201; MTB TIMER <span id="_ld" class="ld on"></span></h1>
+
+<!-- ══ TAB: LIVE ══════════════════════════════════════════ -->
+<div class="tab-pane act" id="tab-live">
+
+  <!-- Status-Karte -->
+  <div class="c">
+    <div class="row">
+      <div>
+        <div class="lb">Start-Node</div>
+        <span id="st" class="bdg si">BEREIT</span>
+      </div>
+      <div style="text-align:right">
+        <div class="lb">Uptime</div>
+        <div class="sm">0:12:34</div>
+        <div style="font-size:.65em;color:#4caf50;margin-top:2px">&#10003; Uhr sync</div>
+      </div>
+    </div>
+    <div id="sig" style="margin-top:8px;font-size:.85em">
+      <span class="sk">
+        <span class="sb on"  style="height:4px"></span>
+        <span class="sb on"  style="height:6px"></span>
+        <span class="sb on"  style="height:9px"></span>
+        <span class="sb on"  style="height:12px"></span>
+        <span class="sb off" style="height:16px"></span>
+      </span>
+      <span class="ok"> Verbunden</span>
+    </div>
+    <div class="dev-row">
+      <span class="dev-b"><span class="dot" style="background:#4caf50"></span>Ziel: Verbunden</span>
+      <span class="dev-b"><span class="dot" style="background:#444"></span>Split: Kein Signal</span>
+    </div>
+  </div>
+
+  <!-- Laufzeit -->
+  <div class="c">
+    <div class="lb">Laufzeit</div>
+    <div class="big" id="_T">--:--.---</div>
+  </div>
+
+  <!-- Letzte / Beste Zeit -->
+  <div class="half">
+    <div class="c">
+      <div class="lb">Letzte Zeit</div>
+      <div class="md" id="t-last">01:32.445</div>
+    </div>
+    <div class="c">
+      <div class="lb">Bestzeit</div>
+      <div class="md bc" id="t-best">01:28.012</div>
+    </div>
+  </div>
+
+  <!-- Modus-Auswahl -->
+  <div id="mode-btns">
+    <div class="lb" style="margin-bottom:6px">Modus wählen</div>
+    <div class="mbtns">
+      <a href="#" class="mbtn mbtn-l" onclick="return false">&#8635; Runden</a>
+      <a href="#" class="mbtn mbtn-d" onclick="return false">&#9876; Duell</a>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ TAB: VERLAUF ══════════════════════════════════════ -->
+<div class="tab-pane" id="tab-hist">
+  <div class="c">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div class="lb" id="h-hdr">Verlauf &mdash; 5 Läufe</div>
+      <button style="background:#111;border:1px solid #1f1f1f;color:#555;border-radius:6px;padding:5px 9px;font-size:.7em;cursor:pointer">&#128203; Fahrten</button>
+    </div>
+    <div id="h-tbl">
+      <table>
+        <tr><th class="rk">#</th><th>Fahrer</th><th>Zeit</th><th>Delta</th></tr>
+        <tr class="r1">
+          <td class="rk">1</td>
+          <td class="nm">Max M.<span class="fahr">F3</span></td>
+          <td title="15.06 14:22">01:28.012</td>
+          <td class="dt">&mdash;</td><td>&#127942;</td>
+        </tr>
+        <tr class="r2">
+          <td class="rk">2</td>
+          <td class="nm">Lisa K.<span class="fahr">F5</span></td>
+          <td title="15.06 14:35">01:31.887</td>
+          <td class="dt">+3.875s</td><td>&#129352;</td>
+        </tr>
+        <tr class="r3">
+          <td class="rk">3</td>
+          <td class="nm">Tom R.<span class="fahr">F1</span></td>
+          <td title="15.06 14:08">01:32.445</td>
+          <td class="dt">+4.433s</td><td>&#129353;</td>
+        </tr>
+        <tr>
+          <td class="rk">4</td>
+          <td class="nm">Anna S.<span class="fahr">F4</span></td>
+          <td>01:35.201</td>
+          <td class="dt">+7.189s</td><td></td>
+        </tr>
+        <tr>
+          <td class="rk">5</td>
+          <td class="nm">Ben W.<span class="fahr">F2</span></td>
+          <td>01:38.990</td>
+          <td class="dt">+10.978s</td><td></td>
+        </tr>
+        <tr style="opacity:.45;font-style:italic">
+          <td class="rk">DNF</td>
+          <td class="nm">Chris P.</td>
+          <td colspan="3">&mdash;</td>
+        </tr>
+      </table>
+    </div>
+    <div style="display:flex;gap:8px">
+      <a href="#" class="btn" onclick="return false">&#128190; CSV</a>
+      <a href="#" class="btn" style="background:#2a0a0a" onclick="return false">&#128465; Zurücksetzen</a>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB: DUELL ════════════════════════════════════════ -->
+<div class="tab-pane" id="tab-duel">
+  <!-- Aktiver Duell-Fahrer Demo -->
+  <div class="c dcard">
+    <div class="row">
+      <div>
+        <div class="lb">Duell &bull; Fahrer 3 / 5</div>
+        <div class="dname">&#9658; Tom Ritter</div>
+        <div class="dnext">Nächster: Anna Schmidt</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <a href="#" class="btn" style="margin:0;background:#333;color:#aaa" onclick="return false">&#9654;&#9654; Skip</a>
+        <a href="#" class="btn" style="margin:0" onclick="return false">&#10006;</a>
+      </div>
+    </div>
+  </div>
+  <div class="c" style="margin-top:8px">
+    <div class="lb">Info</div>
+    <div style="color:#555;font-size:.85em">Bis zu 10 Fahrer &bull; automatische Rangliste nach dem letzten Lauf.</div>
+  </div>
+</div>
+
+<!-- ══ TAB: LORA ══════════════════════════════════════════ -->
+<div class="tab-pane" id="tab-lora">
+
+  <!-- Verbindung -->
+  <div class="c">
+    <div class="row">
+      <div>
+        <div class="lb">Verbindung</div>
+        <span class="ok" style="font-size:.9em;font-weight:bold">Verbunden</span>
+      </div>
+      <div style="text-align:right">
+        <div class="lb">Letzter Kontakt</div>
+        <div class="sm">vor 8 s</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;font-size:.88em">
+      <span class="sk">
+        <span class="sb on" style="height:4px"></span>
+        <span class="sb on" style="height:6px"></span>
+        <span class="sb on" style="height:9px"></span>
+        <span class="sb on" style="height:12px"></span>
+        <span class="sb off" style="height:16px"></span>
+      </span>
+      <span class="ok"> Verbunden</span>
+    </div>
+  </div>
+
+  <!-- RSSI / SNR -->
+  <div class="c">
+    <div class="lb">Empfangsqualität</div>
+    <div style="font-size:.95em;line-height:2">
+      RSSI: <b>-72 dBm</b> &bull; SNR: <b>8.5 dB</b> &bull; <b>MITTEL</b>
+    </div>
+  </div>
+
+  <!-- Statistik -->
+  <div class="c">
+    <div class="lb">Statistik</div>
+    <div style="font-size:.85em;color:#aaa;line-height:1.9">
+      TX: 47 OK &bull; 0 Fehler<br>
+      RX: 12 Pakete<br>
+      RSSI Min/Max: -78 / -65 dBm
+    </div>
+  </div>
+
+  <!-- Konfiguration -->
+  <div class="c">
+    <div class="lb">LoRa Konfiguration</div>
+    <div style="font-size:.85em;color:#555;line-height:1.9">
+      868 MHz &bull; BW 125 kHz &bull; SF7 &bull; CR 4/5 &bull; 14 dBm TX<br>
+      Sync Word: 0x12 (privat)
+    </div>
+  </div>
+
+  <!-- Ping-Button -->
+  <button id="ping-btn" style="width:100%;background:#0d1f2d;color:#64b5f6;border:1px solid #1a3a5a;border-radius:8px;padding:11px;font-size:.95em;font-weight:bold;cursor:pointer" onclick="this.textContent='&#10003; Ping gesendet';setTimeout(()=>this.textContent='&#128246; Verbindung testen (PNG)',2500)">
+    &#128246; Verbindung testen (PNG)
+  </button>
+  <div style="color:#555;font-size:.82em;margin-top:8px;text-align:center"></div>
+
+</div>
+
+<!-- ══ TAB: EINSTELLUNGEN ════════════════════════════════ -->
+<div class="tab-pane" id="tab-cfg">
+
+  <!-- Batterie -->
+  <div class="c">
+    <div class="lb">&#128267; Batterie</div>
+    <div id="bat-val">
+      <b>78%</b><span class="sm"> (3.89 V &bull; ~858 mAh)</span>
+    </div>
+  </div>
+
+  <!-- LoRa-Link -->
+  <div style="margin-bottom:10px;font-size:.82em;color:#555">
+    &#128246; LoRa-Details &rarr; <a href="#" onclick="_st('lora',document.getElementById('bn-lora'));return false" style="color:#64b5f6">LoRa-Tab öffnen</a>
+  </div>
+
+  <form onsubmit="return false">
+
+    <div class="shdr">&#9201; Timing</div>
+    <div class="sg">
+      <div class="sr2">
+        <div class="sl"><span class="slb">Entprellzeit (ms)</span><input type="number" value="500" min="50" max="2000"></div>
+        <small class="hint">Mindestzeit zwischen zwei Auslösungen (50–2000 ms)</small>
+      </div>
+      <div class="sr2">
+        <div class="sl"><span class="slb">Ergebnisanzeige (ms)</span><input type="number" value="8000" min="2000" max="30000"></div>
+        <small class="hint">Wie lange das Ergebnis auf dem Display bleibt</small>
+      </div>
+      <div class="sr2">
+        <div class="sl"><span class="slb">Lauf-Timeout (min)</span><input type="number" value="5" min="1" max="30"></div>
+        <small class="hint">Max. Laufdauer – danach Zurück zu BEREIT</small>
+      </div>
+      <div class="sr2">
+        <div class="sl"><span class="slb">Ping-Intervall (s)</span><input type="number" value="30" min="5" max="300"></div>
+        <small class="hint">Lebenszeichen-Intervall ans Ziel (5–300 s)</small>
+      </div>
+      <div class="sr2">
+        <div class="sl"><span class="slb">LoRa Kompensation (ms)</span><input type="number" value="0" min="0" max="500"></div>
+        <small class="hint">Funklatenz von gemessener Zeit abziehen</small>
+      </div>
+    </div>
+
+    <div class="shdr">&#128267; Batterie</div>
+    <div class="sg">
+      <div class="sr2">
+        <div class="sl"><span class="slb">Akkukapazität (mAh)</span><input type="number" value="1100" min="100" max="10000"></div>
+        <small class="hint">Kapazität des eingebauten Akkus</small>
+      </div>
+    </div>
+
+    <div class="shdr">&#128261; Display</div>
+    <div class="sg">
+      <div class="sr2">
+        <div class="sl"><span class="slb">Helligkeit: <span id="cl">255</span></span></div>
+        <input type="range" value="255" min="0" max="255" oninput="document.getElementById('cl').textContent=this.value">
+        <small class="hint">OLED-Helligkeit (0–255)</small>
+      </div>
+    </div>
+
+    <div class="shdr">&#9000; Sensor</div>
+    <div class="sg">
+      <div class="sr2">
+        <div class="sl"><span class="slb">GPIO Pin</span><input type="number" value="2" min="0" max="39"></div>
+        <small class="hint">Pin des Drucksensors (Neustart nach Änderung)</small>
+      </div>
+      <div class="sr2">
+        <div class="sl"><span class="slb">Sensor-Typ</span></div>
+        <div class="srow">
+          <label><input type="radio" name="platenc" value="0" checked> NO</label>
+          <label><input type="radio" name="platenc" value="1"> NC</label>
+        </div>
+        <small class="hint">NO = schließt bei Auslösung &bull; NC = öffnet bei Auslösung</small>
+      </div>
+    </div>
+
+    <div class="shdr">&#128225; WiFi <span style="color:#555;font-weight:normal">(Neustart nötig)</span></div>
+    <div class="sg">
+      <div class="sr2">
+        <div class="sl"><span class="slb">SSID</span><input type="text" value="MTB-Time-START" maxlength="32"></div>
+      </div>
+      <div class="sr2">
+        <div class="sl"><span class="slb">Passwort</span><input type="password" value="" placeholder="leer lassen" maxlength="63"></div>
+        <small class="hint">Leer = offenes Netz &bull; Mind. 8 Zeichen für WPA2</small>
+      </div>
+    </div>
+
+    <button type="submit" class="sbtn" onclick="showToast()">&#10003; Speichern</button>
+  </form>
+
+  <!-- Verbindungsinfo -->
+  <div class="c" style="margin-top:12px">
+    <div class="lb">Verbindung</div>
+    <div style="font-size:.85em;color:#666;line-height:1.9">
+      &#128225; SSID: <span style="color:#aaa">MTB-Time-START</span><br>
+      &#127760; IP: <span style="color:#aaa">192.168.4.1</span>
+    </div>
+  </div>
+
+  <!-- Firmware -->
+  <div class="c">
+    <div class="shdr">&#128640; Firmware &amp; Gerät</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a href="#" class="btn" style="background:#0d1525;color:#64b5f6" onclick="return false">&#128640; OTA Update</a>
+      <a href="#" class="btn" style="background:#1f1a00;color:#ff9800" onclick="return false">&#128260; Neustart</a>
+      <a href="#" class="btn" style="background:#1a0a0a;color:#f44336" onclick="return false">&#128274; Ausschalten</a>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ Toast ══════════════════════════════════════════════ -->
+<div id="toast-ok" class="toast tok" style="display:none">&#10003; Gespeichert.</div>
+
+<!-- ══ Bottom Navigation ════════════════════════════════ -->
+<nav class="bnav">
+  <button class="bni active" id="bn-live" onclick="_st('live',this)">
+    <svg viewBox="0 0 24 24"><polyline points="2,12 6,6 10,18 14,8 18,12 22,12"/></svg>Live
+  </button>
+  <button class="bni" id="bn-hist" onclick="_st('hist',this)">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12,6 12,12 16,12"/></svg>Verlauf
+  </button>
+  <button class="bni" id="bn-duel" onclick="_st('duel',this)">
+    <svg viewBox="0 0 24 24"><line x1="2" y1="22" x2="22" y2="2"/><line x1="7" y1="2" x2="2" y2="7"/><line x1="17" y1="22" x2="22" y2="17"/></svg>Duell
+  </button>
+  <button class="bni" id="bn-lora" onclick="_st('lora',this)">
+    <svg viewBox="0 0 24 24">
+      <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+      <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+      <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+      <circle cx="12" cy="20" r=".5" fill="currentColor"/>
+    </svg>LoRa
+  </button>
+  <button class="bni" id="bn-cfg" onclick="_st('cfg',this)">
+    <svg viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>Einst.
+  </button>
+</nav>
+
+<script>
+// ── Tab-Switching ──────────────────────────────────────────
+function _st(id, el) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('act'));
+  document.querySelectorAll('.bni').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('act');
+  el.classList.add('active');
+  localStorage.setItem('_tab_preview', id);
+}
+
+// ── Init: gespeicherten Tab wiederherstellen ───────────────
+(function() {
+  var t = localStorage.getItem('_tab_preview') || 'live';
+  var el = document.getElementById('bn-' + t);
+  if (el) _st(t, el);
+  else _st('live', document.getElementById('bn-live'));
+})();
+
+// ── Toast ──────────────────────────────────────────────────
+function showToast() {
+  var t = document.getElementById('toast-ok');
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 2500);
+}
+
+// ── Live-Timer Demo ────────────────────────────────────────
+var _TI = null, _running = false, _startMs = 0;
+function _f(ms) {
+  if (ms < 0) ms = 0;
+  var m = Math.floor(ms/60000), s = Math.floor((ms%60000)/1000), t = ms%1000;
+  return ('0'+m).slice(-2) + ':' + ('0'+s).slice(-2) + '.' + ('00'+t).slice(-3);
+}
+
+// Demo: Klick auf Laufzeit startet/stoppt Timer
+document.getElementById('_T').style.cursor = 'pointer';
+document.getElementById('_T').title = 'Klick zum Starten/Stoppen (Demo)';
+document.getElementById('_T').addEventListener('click', function() {
+  var el = document.getElementById('_T');
+  var bdg = document.getElementById('st');
+  if (!_running) {
+    _startMs = Date.now();
+    _running = true;
+    bdg.textContent = 'LÄUFT';
+    bdg.className = 'bdg sr';
+    _TI = setInterval(function() {
+      el.textContent = _f(Date.now() - _startMs);
+    }, 50);
+  } else {
+    clearInterval(_TI); _TI = null; _running = false;
+    document.getElementById('t-last').textContent = el.textContent;
+    bdg.textContent = 'ERGEBNIS';
+    bdg.className = 'bdg sd';
+    setTimeout(function() { bdg.textContent='BEREIT'; bdg.className='bdg si'; }, 3000);
+  }
+});
+</script>
+</body>
+</html>
