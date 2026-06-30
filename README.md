@@ -6,6 +6,7 @@ Kein Internet, kein Mobilfunk – funktioniert komplett offline über einen loka
 ![Version](https://img.shields.io/badge/Version-v11-blue)
 ![Hardware](https://img.shields.io/badge/Hardware-Heltec%20%7C%20LILYGO-green)
 ![LoRa](https://img.shields.io/badge/LoRa-868%20MHz-orange)
+![Trigger](https://img.shields.io/badge/Trigger-Druckplatte%20%7C%20Luftdruck-purple)
 ![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
 ---
@@ -25,12 +26,24 @@ Bedienung über den Browser am Smartphone via WLAN-Hotspot (`http://192.168.4.1`
 
 ## Unterstützte Hardware
 
-| Board | Chip | LoRa | SD | Flash-Tool |
-|-------|------|------|----|-----------|
-| **Heltec WiFi LoRa 32 V3** | ESP32-S3 | SX1262 | – | PlatformIO |
-| **LILYGO TTGO T3 V1.6.1** | ESP32-PICO-D4 | SX1276 | ✓ MicroSD | Arduino IDE |
+| Board | Chip | LoRa | SD | Flash-Tool | LUFT-fähig |
+|-------|------|------|----|-----------|:----------:|
+| **Heltec WiFi LoRa 32 V3** | ESP32-S3 | SX1262 | – | PlatformIO | ✓ |
+| **LILYGO TTGO T3 V1.6.1** | ESP32-PICO-D4 | SX1276 | ✓ MicroSD | Arduino IDE | – |
 
-Beide Varianten sind **LoRa-kompatibel** und können gemischt eingesetzt werden.
+Beide Varianten sind **LoRa-kompatibel** und können gemischt eingesetzt werden.  
+Die LUFT-Variante (`_LUFT`) ist aktuell nur für **Heltec** verfügbar und benötigt zusätzlich einen **BMP280-Sensor** (I²C, 3,3 V).
+
+---
+
+## Trigger-Varianten
+
+| Variante | Trigger | Ordner-Suffix | Beschreibung |
+|----------|---------|---------------|--------------|
+| **Standard** | GPIO-Druckplatte | *(kein Suffix)* | Physische Kontaktplatte, ISR-basiert |
+| **LUFT** | BMP280 Luftdrucksensor | `_LUFT` | Pneumatischer Gummischlauch, kein Kontakt nötig |
+
+Die LUFT-Variante nutzt einen verschlossenen Gummischlauch mit BMP280-Drucksensor (I²C). Wenn ein Reifen den Schlauch überfährt, erkennt der Sensor den Drucksprung (~50–500 Pa) und löst den Timer aus — wie ein klassischer pneumatischer Straßenzähler. Kein Verschleiß, kein Kabelbruch.
 
 ---
 
@@ -38,12 +51,16 @@ Beide Varianten sind **LoRa-kompatibel** und können gemischt eingesetzt werden.
 
 ```
 MTB-Track-Timer/
-├── MTB_Timer_Start/            # Start-Node  (Heltec, PlatformIO)
-├── MTB_Timer_Start_LILYGO/     # Start-Node  (LILYGO, Arduino IDE)
-├── MTB_Timer_Finish/           # Finish-Node (Heltec, PlatformIO)
-├── MTB_Timer_Finish_LILYGO/    # Finish-Node (LILYGO, Arduino IDE)
-├── MTB_Timer_Split/            # Split-Node  (Heltec, PlatformIO)
-├── MTB_Timer_Split_LILYGO/     # Split-Node  (LILYGO, Arduino IDE)
+├── MTB_Timer_Start/            # Start-Node        (Heltec, Druckplatte)
+├── MTB_Timer_Start_LILYGO/     # Start-Node        (LILYGO, Druckplatte)
+├── MTB_Timer_Start_LUFT/       # Start-Node        (Heltec, Luftdruck BMP280)
+├── MTB_Timer_Finish/           # Finish-Node       (Heltec, Druckplatte)
+├── MTB_Timer_Finish_LILYGO/    # Finish-Node       (LILYGO, Druckplatte)
+├── MTB_Timer_Finish_LUFT/      # Finish-Node       (Heltec, Luftdruck BMP280)
+├── MTB_Timer_Split/            # Split-Node        (Heltec, Druckplatte)
+├── MTB_Timer_Split_LILYGO/     # Split-Node        (LILYGO, Druckplatte)
+├── MTB_Timer_Split_LUFT/       # Split-Node        (Heltec, Luftdruck BMP280)
+├── KONZEPT_LUFT/               # Konzept & Planung LUFT-Variante
 ├── docs/
 │   ├── BEDIENUNGSANLEITUNG.md  # Vollständige Bedienungsanleitung
 │   └── MTB_Timer_Preview.html  # Web-UI Vorschau (offline öffnen)
