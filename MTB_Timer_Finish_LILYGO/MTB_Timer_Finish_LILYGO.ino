@@ -1,11 +1,12 @@
 // ============================================================
-//  FINISH-NODE  v11  –  LILYGO TTGO T3 V1.6.1 (ESP32 + SX1276)
+//  FINISH-NODE  v20  –  LILYGO TTGO T3 V1.6.1 (ESP32 + SX1276)
 //  MTB Downhill Zeitmessung
 //  Bibliotheken: RadioLib >= 6.6, U8g2 >= 2.35, SD (Arduino Core)
 // ============================================================
 // ── Debug-Level ────────────────────────────────────────────
 //  0 = aus  |  1 = Info  |  2 = Verbose
-#define DEBUG_LEVEL  2
+#define DEBUG_LEVEL  0
+#define TZ_OFFSET_SEC 7200  // Zeitzone: CEST=7200, CET=3600
 
 #if DEBUG_LEVEL >= 1
   #define DBG(tag, msg)    Serial.printf("[%8lu] %-9s %s\n",    millis(), tag, msg)
@@ -33,7 +34,6 @@
 #include <SD.h>
 #include "esp_sleep.h"
 #include "esp_timer.h"
-#include <Update.h>
 
 #ifndef HSPI
 #define HSPI 2
@@ -60,7 +60,7 @@
 #define SD_MISO     2
 #define SD_MOSI    15
 
-#define PLATE_PIN   2
+#define PLATE_PIN   4   // GPIO2 = SD_MISO → GPIO4 verwenden!
 #define PRG_PIN     0
 #define LED_PIN    25
 #define BAT_ADC_PIN 35
@@ -165,9 +165,21 @@ uint8_t currentPage = 0;
 // ── Druckplatten-Interrupt ─────────────────────────────────
 volatile bool     plateFlag      = false;
 volatile uint64_t plateTriggerUs = 0;
+static portMUX_TYPE plateMux = portMUX_INITIALIZER_UNLOCKED;
 
 IRAM_ATTR void onPlateTrigger() {
-  if (!plateFlag) { plateTriggerUs = (uint64_t)esp_timer_get_time(); plateFlag = true; }
+  if (!plateFlag) {
+    portENTER_CRITICAL_ISR(&plateMux);
+    plateTriggerUs = (uint64_t)esp_timer_get_time();
+    portEXIT_CRITICAL_ISR(&plateMux);
+    plateFlag = true;
+  }
+}
+static inline uint64_t readPlateTrigger() {
+  portENTER_CRITICAL(&plateMux);
+  uint64_t v = plateTriggerUs;
+  portEXIT_CRITICAL(&plateMux);
+  return v;
 }
 
 // ── LoRa Verbindungsinfo ───────────────────────────────────
@@ -206,9 +218,6 @@ void handleSettingsSave();
 void handleSleep();
 void handleRestart();
 void handleManualPing();
-void handleOtaPage();
-void handleOtaUpload();
-void handleOtaStream();
 void handleExport();
 void handleReset();
 void saveSettings();
@@ -394,8 +403,6 @@ void setup() {
   server.on("/cancel",        handleCancel);
   server.on("/settime",       handleSetTime);
   server.on("/settings/save", HTTP_POST, handleSettingsSave);
-  server.on("/update",        HTTP_GET,  handleOtaPage);
-  server.on("/update",        HTTP_POST, handleOtaUpload, handleOtaStream);
   server.on("/sleep",         handleSleep);
   server.on("/restart",       handleRestart);
   server.on("/sdformat",      handleSdFormat);
@@ -408,7 +415,7 @@ void setup() {
   DBGF("SD",    "%s", sdPresent ? "vorhanden" : "nicht eingelegt");
 
   u8g2.clearBuffer(); u8g2.setFont(u8g2_font_7x13B_tf); u8g2.drawStr(4,18,"MTB TIMER");
-  u8g2.setFont(u8g2_font_6x10_tf); u8g2.drawStr(4,32,"FINISH LILYGO v11");
+  u8g2.setFont(u8g2_font_6x10_tf); u8g2.drawStr(4,32,"FINISH LILYGO v20");
   u8g2.drawHLine(0,36,128);
   char wln[24]; snprintf(wln,sizeof(wln),"WiFi: %.16s",cfg_ap_ssid);
   u8g2.drawStr(0,48,wln); u8g2.drawStr(0,60,sdPresent?"IP: 192.168.4.1 SD":"IP: 192.168.4.1");
@@ -501,8 +508,9 @@ void loop() {
   // ── Druckplatte Ziel (Interrupt) ───────────────────────
   if (plateFlag && appState == ARMED) {
     plateFlag = false;
-    if (plateTriggerUs < startRecvUs) return;
-    uint64_t elapsedUs = plateTriggerUs - startRecvUs;
+    uint64_t safeTrigUs = readPlateTrigger();
+    if (safeTrigUs < startRecvUs) return;
+    uint64_t elapsedUs = safeTrigUs - startRecvUs;
 
     if (elapsedUs > (cfg_debounce_ms * 1000ULL)) {
       // Rohe µs senden – Kompensation erfolgt auf Start-Node

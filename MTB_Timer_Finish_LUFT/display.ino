@@ -1,4 +1,4 @@
-// ── Display: Seiten ───────────────────────────���────────────
+// ── Display: Seiten ────────────────────────────────────────
 void drawPageHeader(const char* title) {
   static const char* pInd[NUM_PAGES] = {"P1","P2","P3","P4"};
   const char* pi = pInd[currentPage < NUM_PAGES ? currentPage : 0];
@@ -26,19 +26,13 @@ void drawPageHeader(const char* title) {
 }
 
 void drawMainPage(unsigned long liveMs) {
-  drawPageHeader("MTB [SPLIT]");
-
+  drawPageHeader("MTB [ZIEL-L]");
   u8g2.setFont(u8g2_font_7x13B_tf);
   char midBuf[14];
-  if      (appState == ARMED && liveMs > 0)     fmtTime(liveMs, midBuf);
+  if      (appState == ARMED && liveMs > 0) fmtTime(liveMs, midBuf);
   else if (appState == DONE  && lastTimeMs > 0) fmtTime(lastTimeMs, midBuf);
-  else if (appState == ARMED)                   strcpy(midBuf, " LAEUFT!");
-  else {
-    unsigned long since = (loraLastContact > 0) ? (millis() - loraLastContact) / 1000 : 9999;
-    if      (loraLastContact == 0) strcpy(midBuf, "KEIN SIG.");
-    else if (since > PEER_TIMEOUT_S) strcpy(midBuf, "VERBIND.?");
-    else                           strcpy(midBuf, " WARTET. ");
-  }
+  else if (appState == ARMED) strcpy(midBuf, " BEREIT!");
+  else    strcpy(midBuf, "  IDLE  ");
   u8g2.drawStr(8, 28, midBuf);
   u8g2.drawHLine(0, 31, 128);
 
@@ -46,13 +40,13 @@ void drawMainPage(unsigned long liveMs) {
   char lastBuf[12], bestBuf[12];
   if (lastTimeMs > 0) fmtTime(lastTimeMs, lastBuf); else strcpy(lastBuf, "--:--.---");
   if (bestTimeMs > 0) fmtTime(bestTimeMs, bestBuf); else strcpy(bestBuf, "--:--.---");
-  u8g2.drawStr(0, 43, "Split:"); u8g2.drawStr(44, 43, lastBuf);
-  u8g2.drawStr(0, 57, "Best: "); u8g2.drawStr(44, 57, bestBuf);
+  u8g2.drawStr(0, 43, "Last:"); u8g2.drawStr(40, 43, lastBuf);
+  u8g2.drawStr(0, 57, "Best:"); u8g2.drawStr(40, 57, bestBuf);
   u8g2.sendBuffer();
 }
 
 void drawSignalPage() {
-  drawPageHeader("[SPLIT] SIGNAL");
+  drawPageHeader("[ZIEL-L] SIGNAL");
   u8g2.setFont(u8g2_font_6x10_tf);
   char buf[28];
   if (loraLastContact == 0) {
@@ -72,16 +66,16 @@ void drawSignalPage() {
 }
 
 void drawHistoryPage() {
-  drawPageHeader("[SPLIT] VERLAUF");
+  drawPageHeader("[ZIEL-L] VERLAUF");
   if (historyCnt == 0) {
     u8g2.setFont(u8g2_font_6x10_tf);
-    u8g2.drawStr(8, 38, "Keine Splits");
+    u8g2.drawStr(8, 38, "Keine Laeufe");
   } else {
     u8g2.setFont(u8g2_font_5x7_tf);
-    uint8_t si[MAX_HISTORY];
-    uint8_t validCnt = 0;
+    uint8_t si[MAX_HISTORY]; uint8_t validCnt = 0;
     for (uint8_t i = 0; i < historyCnt; i++) {
-      uint8_t pi = histPhys(i); if (history[pi] > 0) si[validCnt++] = pi;
+      uint8_t pi = histPhys(i);
+      if (history[pi] > 0) si[validCnt++] = pi;
     }
     for (uint8_t i = 1; i < validCnt; i++) {
       uint8_t key = si[i]; int8_t j = i - 1;
@@ -93,45 +87,47 @@ void drawHistoryPage() {
       uint8_t pi = si[rank];
       char tbuf[12]; fmtTime(history[pi], tbuf);
       char line[22];
-      snprintf(line, sizeof(line), "%d Split %s", rank + 1, tbuf);
+      if (strlen(historyNames[pi]) > 0) {
+        char ns[8]; strncpy(ns, historyNames[pi], 7); ns[7] = '\0';
+        snprintf(line, sizeof(line), "%d %-7s %s", rank + 1, ns, tbuf);
+      } else {
+        snprintf(line, sizeof(line), "%d ---     %s", rank + 1, tbuf);
+      }
       u8g2.drawStr(0, 21 + shown * 11, line);
     }
   }
   u8g2.sendBuffer();
 }
 
-void drawSyncPage() {
-  drawPageHeader("[SPLIT] UHRZEIT");
+void drawSensorPage() {
+  drawPageHeader("[ZIEL-L] SENSOR");
   u8g2.setFont(u8g2_font_6x10_tf);
-  char buf[24];
-  if (!timeIsSynced) {
-    u8g2.drawStr(0, 26, "Nicht synchronisiert");
-    u8g2.drawStr(0, 37, "> Browser oeffnen");
+  char buf[28];
+  if (!bmpCalibrated) {
+    u8g2.drawStr(0, 26, "BMP280 nicht bereit");
+    u8g2.drawStr(0, 38, "Prüfe Verkabelung");
   } else {
-    int64_t ts = nowUnixMs() / 1000LL + TZ_OFFSET_SEC;
-    unsigned hh = (unsigned)((ts % 86400LL) / 3600LL);
-    unsigned mm = (unsigned)((ts % 3600LL) / 60LL);
-    unsigned ss2 = (unsigned)(ts % 60LL);
-    snprintf(buf, sizeof(buf), "%02u:%02u:%02u", hh, mm, ss2);
-    u8g2.drawStr(0, 24, buf);
-    unsigned long ago = (millis() - lastSyncAt) / 1000UL;
-    if (ago < 60)   snprintf(buf, sizeof(buf), "Sync: vor %lus", ago);
-    else            snprintf(buf, sizeof(buf), "Sync: vor %lum", ago / 60UL);
-    u8g2.drawStr(0, 36, buf);
+    float cur = bmp.readPressure();
+    float delta = cur - bmpBaseline;
+    snprintf(buf, sizeof(buf), "Aktuell: %.1f Pa", cur);
+    u8g2.drawStr(0, 22, buf);
+    snprintf(buf, sizeof(buf), "Basis:   %.1f Pa", bmpBaseline);
+    u8g2.drawStr(0, 33, buf);
+    snprintf(buf, sizeof(buf), "Delta:   %+.1f Pa", delta);
+    u8g2.drawStr(0, 44, buf);
+    snprintf(buf, sizeof(buf), "Schwelle:%u Pa", cfg_pressure_threshold_pa);
+    u8g2.drawStr(0, 55, buf);
   }
-  char upBuf2[14]; fmtUptime(upBuf2);
-  snprintf(buf, sizeof(buf), "Up: %s", upBuf2);
-  u8g2.drawStr(0, 50, buf);
   u8g2.sendBuffer();
 }
 
 void drawDisplay(unsigned long liveMs) {
   switch (currentPage) {
-    case 0:  drawMainPage(liveMs); break;
-    case 1:  drawSignalPage();     break;
-    case 2:  drawHistoryPage();    break;
-    case 3:  drawSyncPage();       break;
-    default: drawMainPage(liveMs); break;
+    case 0:  drawMainPage(liveMs);  break;
+    case 1:  drawSignalPage();      break;
+    case 2:  drawHistoryPage();     break;
+    case 3:  drawSensorPage();      break;
+    default: drawMainPage(liveMs);  break;
   }
 }
 

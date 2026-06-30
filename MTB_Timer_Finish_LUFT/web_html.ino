@@ -1,6 +1,6 @@
 // ── WebServer JSON-State ───────────────────────────────────
 String buildState() {
-  String j; j.reserve(1536);
+  String j; j.reserve(2048);
   unsigned long liveMs = 0;
   if (appState == ARMED) {
     uint64_t curUs = (uint64_t)esp_timer_get_time();
@@ -11,8 +11,8 @@ String buildState() {
   unsigned long now   = millis();
   unsigned long since = (loraLastContact > 0) ? (now - loraLastContact) / 1000 : 9999;
   bool peerOk = loraLastContact > 0 && since < PEER_TIMEOUT_S;
-  const char* stStr = (appState == IDLE)  ? (peerOk ? "WARTET" : "KEIN SIG.")
-                    : (appState == ARMED)  ? "LAEUFT" : "SPLIT-OK";
+  const char* stStr = (appState == IDLE)   ? (peerOk ? "WARTET" : "KEIN ZIEL")
+                    : (appState == ARMED)   ? "LAEUFT" : "ERGEBNIS";
 
   j  = "{\"state\":\"";   j += stStr;
   j += "\",\"liveMs\":";  j += liveMs;
@@ -22,27 +22,30 @@ String buildState() {
   j += ",\"rssi\":";      j += (int)loraRssi;
   j += ",\"snr\":";       j += String(loraSnr, 1);
   j += ",\"since\":";     j += since;
-  j += ",\"bat\":{\"pct\":"; j += batPercent;
-  j += ",\"mv\":";            j += (uint32_t)(batVoltage * 1000.0f);
-  j += ",\"mah\":";           j += cfg_bat_mah;
-  j += "}";
-  j += ",\"lora_pwr\":";    j += cfg_lora_pwr;
-  j += ",\"btn2_pin\":";    j += cfg_btn2_pin;
-  j += ",\"auto_page\":";   j += cfg_page_auto_ms;
-  j += ",\"lora\":{\"txOk\":"; j += loraTxCount;
-  j += ",\"txFail\":";          j += loraTxFail;
-  j += ",\"rxCnt\":";           j += loraRxCount;
-  j += ",\"rssiMin\":";
-  if (loraHasRx) j += (int)loraRssiMin; else j += "0";
-  j += ",\"rssiMax\":";
-  if (loraHasRx) j += (int)loraRssiMax; else j += "0";
-  j += ",\"freq\":868,\"bw\":125,\"sf\":7,\"cr\":5}";
   { unsigned long sa = (lastSyncAt > 0) ? (now - lastSyncAt) / 1000 : 9999UL;
     j += ",\"timeSynced\":"; j += (timeIsSynced ? "true" : "false");
     j += ",\"syncAgo\":";    j += sa;
     char nowBuf[22]; snprintf(nowBuf, sizeof(nowBuf), "%lld", (long long)nowUnixMs());
     j += ",\"nowMs\":";      j += nowBuf;
   }
+  j += ",\"rider\":\"";
+  String rn = String(currentRiderName);
+  rn.replace("\\", "\\\\"); rn.replace("\"", "\\\"");
+  rn.replace("\n", "\\n");  rn.replace("\r", "\\r");
+  j += rn;
+  j += "\"";
+  j += ",\"bat\":{\"pct\":"; j += batPercent;
+  j += ",\"mv\":";            j += (uint32_t)(batVoltage * 1000.0f);
+  j += ",\"mah\":";           j += cfg_bat_mah;
+  j += "}";
+  j += ",\"lora\":{\"txOk\":"; j += loraTxCount;
+  j += ",\"txFail\":";          j += loraTxFail;
+  j += ",\"rxCnt\":";           j += loraRxCount;
+  j += ",\"rssiMin\":";
+  if (loraRxCount > 0) j += (int)loraRssiMin; else j += "0";
+  j += ",\"rssiMax\":";
+  if (loraRxCount > 0) j += (int)loraRssiMax; else j += "0";
+  j += ",\"freq\":868,\"bw\":125,\"sf\":7,\"cr\":5}";
   j += ",\"hist\":[";
   for (uint8_t i = 0; i < historyCnt; i++) {
     uint8_t pi = histPhys(i);
@@ -56,7 +59,21 @@ String buildState() {
     j += "\",\"ts\":"; j += tsBuf;
     j += "}";
   }
-  j += "]}";
+  j += "],\"cfg\":{";
+  j += "\"debounce\":";     j += cfg_debounce_ms;
+  j += ",\"result_show\":"; j += cfg_result_show_ms;
+  j += ",\"timeout\":";     j += cfg_run_timeout_ms;
+  j += ",\"lora_comp\":";   j += cfg_lora_comp_ms;
+  j += ",\"lora_pwr\":";    j += cfg_lora_pwr;
+  j += ",\"btn2_pin\":";    j += cfg_btn2_pin;
+  j += ",\"auto_page\":";   j += cfg_page_auto_ms;
+  j += ",\"contrast\":";      j += cfg_contrast;
+  j += ",\"bmp_thresh\":";   j += cfg_pressure_threshold_pa;
+  j += ",\"bmp_cal_delay\":"; j += cfg_bmp_cal_delay_ms;
+  j += ",\"bmp_calibrated\":"; j += bmpCalibrated ? "true" : "false";
+  j += ",\"bmp_baseline\":"; j += (uint32_t)bmpBaseline;
+  j += ",\"bat_mah\":";     j += cfg_bat_mah;
+  j += "}}";
   return j;
 }
 
@@ -69,14 +86,14 @@ void handleState() {
 String buildHTML() {
   char buf[20];
   String html;
-  html.reserve(10240);
+  html.reserve(12288);
 
   char upBuf[12]; fmtUptime(upBuf);
   unsigned long now   = millis();
   unsigned long since = (loraLastContact > 0) ? (now - loraLastContact) / 1000 : 9999;
   bool peerOk = loraLastContact > 0 && since < PEER_TIMEOUT_S;
-  const char* stStr = (appState == IDLE)  ? (peerOk ? "WARTET" : "KEIN SIG.")
-                    : (appState == ARMED)  ? "LAEUFT" : "SPLIT-OK";
+  const char* stStr = (appState == IDLE)  ? (peerOk ? "WARTET" : "KEIN ZIEL")
+                    : (appState == ARMED)  ? "LAEUFT" : "ERGEBNIS";
   const char* stCls = (appState == IDLE)  ? (peerOk ? "si" : "se")
                     : (appState == ARMED)  ? "sr" : "sd";
 
@@ -109,7 +126,7 @@ String buildHTML() {
     "<meta name='viewport' content='width=device-width,initial-scale=1'>"
     "<script>var _P=Date.now(),_S='" + String(stStr) + "',_B=" + String(liveMs) +
     ",_H=" + String(historyCnt) + ";</script>"
-    "<title>MTB SPLIT</title><style>"
+    "<title>MTB ZIEL</title><style>"
     ":root{--bg:#0a0a0a;--card:#1c1c1e;--card2:#2a2a2c;--txt:#eee;--sub:#555;--sub2:#383838;"
     "--acc:#f0a500;--acc-txt:#000;--ok:#4caf50;--ok-bg:#0d1f0d;--err:#f44336;--err-bg:#200d0d;"
     "--border:#2a2a2a;--border2:#1c1c1e;--blue:#64b5f6;--blue-bg:#0d1525}"
@@ -184,6 +201,9 @@ String buildHTML() {
     ".batblink{animation:batblink 1s infinite}"
     ".rc-banner{display:none;background:#2a1a00;color:#ff9800;border:1px solid #4a3a1a;border-radius:12px;padding:8px 14px;margin-bottom:12px;font-size:.82em}"
     ".evt-toast{display:none;border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:.85em;color:#eee}"
+    ".dev-row{display:flex;gap:12px;margin-top:10px;font-size:.82em}"
+    ".dev-b{display:flex;align-items:center;gap:6px;color:#aaa}"
+    ".dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}"
     "@keyframes newbest{0%{color:#fff;text-shadow:0 0 20px #f0a500}100%{color:#f0a500;text-shadow:none}}"
     ".newbest{animation:newbest 1.5s ease-out}"
     "@media(min-width:640px){"
@@ -191,11 +211,12 @@ String buildHTML() {
     ".bnav{width:640px;left:50%;right:auto;transform:translateX(-50%)}"
     ".bni{padding:8px 4px;font-size:.68em}.bni svg{width:24px;height:24px}}"
     "@media print{.bnav,#bat-warn,#rc-banner,#res-ov,.toast,.evt-toast,"
-    "#tab-lora,#tab-cfg{display:none!important}#tab-hist{display:block!important}"
+    "#tab-lora,#tab-cfg{display:none!important}"
+    "#tab-hist{display:block!important}"
     "body{background:#fff;color:#000;padding:0}}"
     "</style></head><body>"
     "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px'>"
-    "<h1 style='margin:0'>&#9201; MTB SPLIT <span id='_ld' class='ld on'></span></h1>"
+    "<h1 style='margin:0'>&#9201; MTB ZIEL <span id='_ld' class='ld on'></span></h1>"
     "<div style='display:flex;align-items:center;gap:8px'>"
     "<button onclick='_fs()' style='background:none;border:none;color:var(--sub);font-size:1.2em;cursor:pointer;padding:4px'>&#9974;</button>"
     "<button id='theme-btn' onclick='_toggleTheme()' style='background:none;border:1px solid var(--border);"
@@ -221,27 +242,32 @@ String buildHTML() {
   sk += "</span>";
 
   {
-    unsigned long syncAge5 = (lastSyncAt > 0) ? (millis() - lastSyncAt) / 1000 : 9999UL;
-    String syncTxt5 = (timeIsSynced && syncAge5 < 300) ? "&#10003; Uhr sync" : "&#9888; Uhr nicht sync";
+    unsigned long syncAge3 = (lastSyncAt > 0) ? (millis() - lastSyncAt) / 1000 : 9999UL;
+    String syncTxt3 = (timeIsSynced && syncAge3 < 300) ? "&#10003; Uhr sync" : "&#9888; Uhr nicht sync";
     html += "<div class='c'><div class='row'>"
-      "<div><div class='lb'>Split-Node</div><span id='st' class='bdg " + String(stCls) + "'>" + stStr + "</span></div>"
+      "<div><div class='lb'>Ziel-Node</div><span id='st' class='bdg " + String(stCls) + "'>" + stStr + "</span></div>"
       "<div style='text-align:right'><div class='lb'>Uptime</div><div class='sm'>" + upBuf + "</div></div>"
       "</div>"
-      "<div id='sync-ind' style='margin-top:6px;font-size:.75em;color:#555'>" + syncTxt5 + "</div>"
+      "<div id='sync-ind' style='margin-top:6px;font-size:.75em;color:#555'>" + syncTxt3 + "</div>"
       "</div>";
   }
+  html += "<div id='rider-wrap' style='margin-top:8px;display:" +
+    String(strlen(currentRiderName) > 0 ? "block" : "none") + "'>"
+    "<div class='lb'>Aktueller Fahrer</div>"
+    "<div id='rider' style='font-size:1em;font-weight:bold'>" + htmlEsc(currentRiderName) + "</div></div>";
+  html += "</div>";
 
   html += "<div id='cwrap'" + String(appState == ARMED ? "" : " style='display:none'") + ">"
     "<a class='btn cbtn' href='/cancel' onclick=\"return confirm('Lauf abbrechen?')\">"
     "&#10005; Lauf abbrechen</a></div>";
 
-  html += "<div class='c'><div class='lb'>Split-Zeit</div><div class='big' id='_T'>";
+  html += "<div class='c'><div class='lb'>Laufzeit</div><div class='big' id='_T'>";
   if (liveMs > 0) { fmtTime(liveMs, buf); html += buf; } else html += "--:--.---";
   html += "</div></div>";
 
   html += "<div class='half'>"
-    "<div class='c'><div class='lb'>Letzter Split</div><div class='md' id='t-last'>" + sLast + "</div></div>"
-    "<div class='c'><div class='lb'>Bester Split</div><div class='md bc' id='t-best'>" + sBest + "</div></div>"
+    "<div class='c'><div class='lb'>Letzte Zeit</div><div class='md' id='t-last'>" + sLast + "</div></div>"
+    "<div class='c'><div class='lb'>Bestzeit</div><div class='md bc' id='t-best'>" + sBest + "</div></div>"
     "</div>";
 
   html += "</div>"; // tab-live
@@ -249,14 +275,14 @@ String buildHTML() {
   // ══ TAB: VERLAUF ═══════════════════════════════════════════
   html += "<div class='tab-pane' id='tab-hist'>";
   html += "<div class='c'>"
-    "<div class='row' style='margin-bottom:8px'>"
-    "<div class='lb' id='h-hdr'>Verlauf &mdash; " + String(historyCnt) + " Splits</div>"
-    "<button id='h-vbtn' onclick='_togHist()' style='background:#1a1a1a;border:1px solid #2a2a2a;"
-    "color:#888;border-radius:6px;padding:4px 10px;font-size:.72em;cursor:pointer'>"
-    "&#9201; Bestzeit</button></div>";
+    "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:4px'>"
+    "<div class='lb' id='h-hdr'>Verlauf &mdash; " + String(historyCnt) + " L&auml;ufe</div>"
+    "<button onclick='_togHist()' id='h-vbtn' style='background:#111;border:1px solid #1f1f1f;color:#555;"
+    "border-radius:6px;padding:5px 9px;font-size:.7em;cursor:pointer'>&#128203; Fahrten</button>"
+    "</div>";
   html += "<div id='h-tbl'>";
   if (historyCnt == 0) {
-    html += "<div style='color:#2a2a2a;padding:10px 0'>Keine Splits.</div>";
+    html += "<div style='color:#2a2a2a;padding:10px 0'>Keine Messungen.</div>";
   } else {
     uint8_t sortIdx[MAX_HISTORY];
     uint8_t validCnt = 0;
@@ -266,26 +292,28 @@ String buildHTML() {
       while (j >= 0 && history[sortIdx[j]] > history[key]) { sortIdx[j+1] = sortIdx[j]; j--; }
       sortIdx[j+1] = key;
     }
-    html += "<table><tr><th class='rk'>#</th><th>Zeit</th><th>+Delta</th><th></th></tr>";
+    html += "<table><tr><th class='rk'>#</th><th>Fahrer</th><th>Zeit</th><th>Delta</th></tr>";
     for (uint8_t rank = 0; rank < validCnt; rank++) {
       uint8_t i = sortIdx[rank];
       fmtTime(history[i], buf);
+      bool hasName = strlen(historyNames[i]) > 0;
       const char* rc  = (rank == 0) ? "r1" : (rank == 1) ? "r2" : (rank == 2) ? "r3" : "";
       const char* med = (rank == 0) ? "&#127942;" : (rank == 1) ? "&#129352;" : (rank == 2) ? "&#129353;" : "";
-      char tsBuf[22]; snprintf(tsBuf, sizeof(tsBuf), "%lld", (long long)historyTimestamp[i]);
       html += "<tr class='"; html += rc; html += "'>";
       html += "<td class='rk'>"; html += String(rank + 1); html += "</td>";
-      html += "<td";
+      html += "<td class='nm'>";
+      if (hasName) html += htmlEsc(historyNames[i]); else html += "&mdash;";
+      char fahrBuf[6]; snprintf(fahrBuf, sizeof(fahrBuf), "F%u", i + 1);
+      html += "<span class='fahr'>"; html += fahrBuf; html += "</span></td>";
       if (historyTimestamp[i] > 0) {
+        char tsBuf[20];
         time_t t2 = (time_t)(historyTimestamp[i] / 1000LL);
         struct tm* tm2 = gmtime(&t2);
-        char dtBuf[20];
-        snprintf(dtBuf, sizeof(dtBuf), "%02d.%02d.%04d %02d:%02d",
-                 tm2->tm_mday, tm2->tm_mon + 1, tm2->tm_year + 1900, tm2->tm_hour, tm2->tm_min);
-        html += " title='"; html += dtBuf; html += "'";
+        snprintf(tsBuf, sizeof(tsBuf), "%02d.%02d %02d:%02d", tm2->tm_mday, tm2->tm_mon + 1, tm2->tm_hour, tm2->tm_min);
+        html += "<td title='"; html += tsBuf; html += "'>"; html += buf; html += "</td>";
+      } else {
+        html += "<td>"; html += buf; html += "</td>";
       }
-      html += " style='cursor:default'>"; html += buf;
-      html += "<span class='fahr'>F"; html += String(i + 1); html += "</span></td>";
       if (rank == 0 || bestTimeMs == 0) {
         html += "<td class='dt'>&mdash;</td><td>"; html += med; html += "</td>";
       } else {
@@ -297,13 +325,21 @@ String buildHTML() {
       }
       html += "</tr>";
     }
+    for (uint8_t i = 0; i < historyCnt; i++) {
+      if (history[i] == 0) {
+        bool hasName = strlen(historyNames[i]) > 0;
+        html += "<tr style='opacity:.45;font-style:italic'><td class='rk'>DNF</td>";
+        html += "<td class='nm'>"; html += (hasName ? htmlEsc(historyNames[i]) : "&mdash;"); html += "</td>";
+        html += "<td colspan='2'>&mdash;</td></tr>";
+      }
+    }
     html += "</table>";
   }
   html += "</div>";
   html += "<div style='display:flex;gap:8px;flex-wrap:wrap'>"
           "<a class='btn' href='/export'>&#128190; CSV</a>"
           "<button class='btn' onclick='_share()'>&#8599; Teilen</button>"
-          "<a class='btn' style='background:#2a0a0a' href='/reset' onclick=\"return confirm('Alle Splits l\\u00f6schen?')\">&#128465; Zur&uuml;cksetzen</a>"
+          "<a class='btn' style='background:#2a0a0a' href='/reset' onclick=\"return confirm('Alle Zeiten l\\u00f6schen?')\">&#128465; Zur&uuml;cksetzen</a>"
           "</div></div>";
   html += "</div>"; // tab-hist
 
@@ -337,7 +373,7 @@ String buildHTML() {
     "<div id='lora-stat' style='font-size:.85em;color:#aaa;line-height:1.9'>"
     "TX: " + String(loraTxCount) + " OK &bull; " + String(loraTxFail) + " Fehler<br>"
     "RX: " + String(loraRxCount) + " Pakete";
-  if (loraHasRx) {
+  if (loraRxCount > 0) {
     char mn[8], mx[8];
     sprintf(mn, "%d", (int)loraRssiMin);
     sprintf(mx, "%d", (int)loraRssiMax);
@@ -357,20 +393,20 @@ String buildHTML() {
   }
 
   {
-    unsigned long syncAge6 = (lastSyncAt > 0) ? (millis() - lastSyncAt) / 1000 : 9999UL;
-    const char* syncBadgeCls = (timeIsSynced && syncAge6 < 300) ? "ok" : (timeIsSynced ? "w" : "e");
-    const char* syncBadgeTxt = (timeIsSynced && syncAge6 < 300) ? "&#10003; Synchronisiert"
+    unsigned long syncAge4 = (lastSyncAt > 0) ? (millis() - lastSyncAt) / 1000 : 9999UL;
+    const char* syncBadgeCls = (timeIsSynced && syncAge4 < 300) ? "ok" : (timeIsSynced ? "w" : "e");
+    const char* syncBadgeTxt = (timeIsSynced && syncAge4 < 300) ? "&#10003; Synchronisiert"
                              : (timeIsSynced ? "&#9888; Sync veraltet" : "&#10007; Nicht synchronisiert");
-    String syncDetailTxt6;
-    if (timeIsSynced && syncAge6 < 9999) {
-      if (syncAge6 < 60) syncDetailTxt6 = "Letzte Sync: vor " + String(syncAge6) + " s";
-      else               syncDetailTxt6 = "Letzte Sync: vor " + String(syncAge6 / 60) + " min";
+    String syncDetailTxt;
+    if (timeIsSynced && syncAge4 < 9999) {
+      if (syncAge4 < 60) syncDetailTxt = "Letzte Sync: vor " + String(syncAge4) + " s";
+      else               syncDetailTxt = "Letzte Sync: vor " + String(syncAge4 / 60) + " min";
     } else {
-      syncDetailTxt6 = "Browser-Seite &ouml;ffnen zum Synchronisieren";
+      syncDetailTxt = "Browser-Seite &ouml;ffnen zum Synchronisieren";
     }
-    html += "<div class='c'><div class='lb'>&#9201; Uhrzeit-Sync <span style='font-size:.75em;color:#555;font-weight:normal'>(nur f&uuml;r Zeitstempel-Logging)</span></div>"
+    html += "<div class='c'><div class='lb'>&#9201; Uhrzeit-Sync</div>"
       "<div style='margin-bottom:8px'><span class='" + String(syncBadgeCls) + "' id='sync-lora-badge'>" + syncBadgeTxt + "</span></div>"
-      "<div id='sync-lora-detail' style='font-size:.82em;color:#555;line-height:1.8'>" + syncDetailTxt6 + "</div>"
+      "<div id='sync-lora-detail' style='font-size:.82em;color:#555;line-height:1.8'>" + syncDetailTxt + "</div>"
       "<button onclick='doSync()' class='btn' style='margin-top:10px;width:100%'>&#8635; Jetzt synchronisieren</button>"
       "</div>";
   }
@@ -400,7 +436,12 @@ String buildHTML() {
   }
   html += "</div></div>";
 
+  html += "<div style='margin-bottom:10px;font-size:.82em;color:#555'>"
+    "&#128246; LoRa-Details &rarr; <a href=\"#\" onclick=\"_st('lora',document.getElementById('bn-lora'));return false;\" "
+    "style='color:#64b5f6'>LoRa-Tab &ouml;ffnen</a></div>";
+
   html += "<form action='/settings/save' method='POST'>";
+
   html += "<div class='shdr'>&#9201; Timing</div>";
   html += "<div class='sg'>"
     "<div class='sr2'><div class='sl'><span class='slb'>Entprellzeit (ms)</span>"
@@ -425,12 +466,14 @@ String buildHTML() {
     "<input type='number' inputmode='numeric' pattern='[0-9]*' step='1' name='maxretry' value='" + String(cfg_max_retries) + "' min='1' max='10'></div>"
     "<small class='hint'>Maximale Anzahl Sendeversuche bis zum Aufgeben</small></div>"
     "</div>";
+
   html += "<div class='shdr'>&#128267; Batterie</div>";
   html += "<div class='sg'>"
     "<div class='sr2'><div class='sl'><span class='slb'>Akkukapazit&auml;t (mAh)</span>"
     "<input type='number' name='batmah' value='" + String(cfg_bat_mah) + "' min='100' max='10000'></div>"
     "<small class='hint'>Kapazit&auml;t des eingebauten Akkus</small></div>"
     "</div>";
+
   html += "<div class='shdr'>&#128261; Display</div>";
   html += "<div class='sg'>"
     "<div class='sr2'><div class='sl'><span class='slb'>Helligkeit: <span id='cl'>" + String(cfg_contrast) + "</span></span></div>"
@@ -438,16 +481,27 @@ String buildHTML() {
     "oninput=\"document.getElementById('cl').textContent=this.value\">"
     "<small class='hint'>OLED-Helligkeit (0&ndash;255)</small></div>"
     "</div>";
-  html += "<div class='shdr'>&#9000; Sensor</div>";
+
+  html += "<div class='shdr'>&#128168; Luftdruck-Sensor (BMP280)</div>";
   html += "<div class='sg'>"
-    "<div class='sr2'><div class='sl'><span class='slb'>GPIO Pin</span>"
-    "<input type='number' name='platepin' value='" + String(cfg_plate_pin) + "' min='0' max='39'></div>"
-    "<small class='hint'>Pin des Drucksensors (Neustart nach &Auml;nderung)</small></div>"
-    "<div class='sr2'><div class='sl'><span class='slb'>Sensor-Typ</span></div>"
-    "<div class='srow'>"
-    "<label><input type='radio' name='platenc' value='0'" + String(!cfg_plate_nc ? " checked" : "") + "> NO</label>"
-    "<label><input type='radio' name='platenc' value='1'" + String(cfg_plate_nc ? " checked" : "") + "> NC</label></div></div>"
+    "<div class='sr2'><div class='sl'><span class='slb'>Druckschwelle (Pa)</span>"
+    "<input type='number' name='bmpthresh' value='" + String(cfg_pressure_threshold_pa) + "' min='10' max='5000' inputmode='numeric'></div>"
+    "<small class='hint'>Drucksprung ab dem ein Trigger ausgel&ouml;st wird &bull; Standard: 80 Pa</small></div>"
+    "<div class='sr2'><div class='sl'><span class='slb'>Kalibrierungszeit (ms)</span>"
+    "<input type='number' name='bmpcaldly' value='" + String(cfg_bmp_cal_delay_ms) + "' min='1000' max='10000' inputmode='numeric'></div>"
+    "<small class='hint'>Wartezeit nach Einschalten vor Kalibrierung &bull; Standard: 3000 ms</small></div>"
+    "<div class='sr2'>"
+    "<div style='display:flex;align-items:center;justify-content:space-between'>"
+    "<div><span class='slb'>Basisdruck</span>"
+    "<div style='color:#aaa;font-size:.9em'>" + String((uint32_t)bmpBaseline) + " Pa " +
+    (bmpCalibrated ? "<span style='color:#4cd964'>&#10003; OK</span>" : "<span style='color:#ff3b30'>&#10007; Fehler</span>") +
+    "</div></div>"
+    "<button type='button' onclick=\"fetch('/calibrate').then(r=>r.json()).then(d=>{if(d.ok)alert('Kalibriert: '+d.baseline+' Pa');else alert('Fehler!')})\" "
+    "style='background:#1c1c1e;color:#f0a500;border:1px solid #333;border-radius:8px;padding:8px 14px;font-size:.85em;cursor:pointer'>"
+    "&#8635; Neu kalibrieren</button></div>"
+    "<small class='hint'>Schlauch nicht bet&auml;tigen w&auml;hrend der Kalibrierung</small></div>"
     "</div>";
+
   html += "<div class='shdr'>&#128065; Display</div>";
   html += "<div class='sg'>"
     "<div class='sr2'><div class='sl'><span class='slb'>Zusatztaste GPIO</span>"
@@ -466,6 +520,7 @@ String buildHTML() {
     "<input type='password' name='appass' value='' placeholder='leer lassen' maxlength='63'></div>"
     "<small class='hint'>Leer = offenes Netz &bull; Mind. 8 Zeichen f&uuml;r WPA2</small></div>"
     "</div>";
+
   html += "<button type='submit' class='sbtn'>&#10003; Speichern</button>";
   html += "</form>";
   html += "<div class='c' style='margin-top:12px'>"
@@ -490,14 +545,14 @@ String buildHTML() {
     "document.querySelectorAll('.bni').forEach(function(t){t.classList.remove('active')});"
     "var tp=document.getElementById('tab-'+id);if(tp)tp.classList.add('act');"
     "if(el)el.classList.add('active');"
-    "localStorage.setItem('_tabS',id);}"
+    "localStorage.setItem('_tab2',id);}"
     "(function(){"
     "fetch('/settime?ts='+Date.now()).catch(function(){});"
     "var p=new URLSearchParams(location.search);"
     "if(p.get('saved')==='1')document.getElementById('toast-ok').style.display='block';"
     "if(p.get('restart')==='1')document.getElementById('toast-rs').style.display='block';"
     "function _initNav(){"
-    "var t=p.get('tab')||localStorage.getItem('_tabS')||'live';"
+    "var t=p.get('tab')||localStorage.getItem('_tab2')||'live';"
     "var el=document.getElementById('bn-'+t)||document.getElementById('bn-live');"
     "_st(t,el);}"
     "if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',_initNav);"
@@ -511,8 +566,10 @@ String buildHTML() {
     "return d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})+'\\u00a0'+"
     "d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});"
     "}catch(e){return'?';}}"
+    "function _esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}"
     "var _el=null,_TI=null,_t0=0;"
-    "function _startTimer(ms){_t0=Date.now()-ms;"
+    "function _startTimer(ms){"
+    "_t0=Date.now()-ms;"
     "if(!_TI)_TI=setInterval(function(){"
     "var e=document.getElementById('_T');if(e&&_t0>0)e.textContent=_f(Date.now()-_t0);},50);}"
     "function _stopTimer(){if(_TI){clearInterval(_TI);_TI=null;}_t0=0;}"
@@ -551,18 +608,25 @@ String buildHTML() {
     "if(sd){"
     "if(d.timeSynced&&d.nowMs){"
     "var drift=Date.now()-d.nowMs;"
-    "var driftTxt=(Math.abs(drift)<60000?(drift>=0?'+':'')+drift+' ms':(drift>=0?'+':'')+(drift/1000).toFixed(1)+' s');"
+    "var driftTxt=(Math.abs(drift)<60000?"
+    "(drift>=0?'+':'')+drift+' ms':"
+    "(drift>=0?'+':'')+(drift/1000).toFixed(1)+' s');"
     "var driftCol=Math.abs(drift)<500?'#4caf50':Math.abs(drift)<5000?'#ff9800':'#f44336';"
     "var nd=new Date(d.nowMs);"
     "var timeTxt=nd.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});"
     "var dateTxt=nd.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});"
     "var syncD=new Date(Date.now()-d.syncAgo*1000);"
     "var syncTxt=syncD.toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'});"
-    "sd.innerHTML='Zeit: <b>'+timeTxt+'</b><br>Datum: '+dateTxt+'<br>Letzter Sync: '+syncTxt+'<br>Versatz: <b style=\"color:'+driftCol+'\">'+driftTxt+'</b> (Node\\u2194Browser)';}"
+    "sd.innerHTML="
+    "'Zeit: <b>'+timeTxt+'</b><br>'"
+    "+'Datum: '+dateTxt+'<br>'"
+    "+'Letzter Sync: '+syncTxt+'<br>'"
+    "+'Versatz: <b style=\"color:'+driftCol+'\">'+driftTxt+'</b> (Node\\u2194Browser)';}"
     "else sd.textContent='Browser-Seite \\u00f6ffnen zum Synchronisieren';}}"
     "function _bat(d){if(!d.bat||!d.bat.mv)return;"
     "var pct=d.bat.pct,mv=d.bat.mv,mah=d.bat.mah;"
-    "var rem=Math.round(mah*pct/100),v=(mv/1000).toFixed(2);"
+    "var rem=Math.round(mah*pct/100);"
+    "var v=(mv/1000).toFixed(2);"
     "var bel=document.getElementById('bat-val');"
     "var bc=pct<=5?'batc':pct<=15?'batw':'';"
     "var warn=pct<=5?' &#9888; KRITISCH':pct<=15?' &#9888; Niedrig':'';"
@@ -572,39 +636,51 @@ String buildHTML() {
     "var h=d.hist,best=d.bestMs;"
     "var htbl=document.getElementById('h-tbl');"
     "var hhdr=document.getElementById('h-hdr');"
-    "if(h.length===0){htbl.innerHTML=\"<div style='color:#2a2a2a;padding:10px 0'>Keine Splits.</div>\";hhdr.textContent='Verlauf \\u2014 0 Splits';return;}"
-    "var valid=[];for(var i=0;i<h.length;i++){if(h[i].ms>0)valid.push({ms:h[i].ms,ts:h[i].ts,fi:i+1});}"
+    "if(h.length===0){htbl.innerHTML=\"<div style='color:#2a2a2a;padding:10px 0'>Keine Messungen.</div>\";hhdr.textContent='Verlauf \\u2014 0 L\\u00e4ufe';return;}"
+    "var valid=[];for(var i=0;i<h.length;i++){if(h[i].ms>0)valid.push({ms:h[i].ms,n:h[i].n,ts:h[i].ts,fi:i+1});}"
+    "var dnfs=h.filter(function(e){return e.ms===0;});"
     "var display=_hMode===1?valid.slice():valid.slice().sort(function(a,b){return a.ms-b.ms;});"
     "var s=\"<table><tr><th class='rk'>#</th><th>Zeit</th><th>+Delta</th><th></th></tr>\";"
     "for(var rank=0;rank<display.length;rank++){"
     "var it=display[rank],ms=it.ms,ts=it.ts||0;"
     "var rc=_hMode===0?(rank===0?'r1':rank===1?'r2':rank===2?'r3':''):(it.fi===1?'r1':it.fi===2?'r2':it.fi===3?'r3':'');"
     "var med=_hMode===0?(rank===0?'&#127942;':rank===1?'&#129352;':rank===2?'&#129353;':''):(it.fi===1?'&#127942;':it.fi===2?'&#129352;':it.fi===3?'&#129353;':'');"
-    "var dts=_fts(ts),ttl=dts!=='\\u2014'?' title=\"'+dts+'\"':'';"
-    "s+='<tr class=\"'+rc+'\"><td class=\"rk\">'+(rank+1)+'</td>';"
+    "var dts=_fts(ts);"
+    "var ttl=dts!=='\\u2014'?' title=\"'+dts+'\"':'';"
+    "s+='<tr class=\"'+rc+'\">';"
+    "s+='<td class=\"rk\">'+(rank+1)+'</td>';"
     "s+='<td'+ttl+' style=\"cursor:default\">'+_f(ms)+\"<span class='fahr'>F\"+it.fi+'</span></td>';"
-    "if(_hMode===0&&rank>0&&best>0){"
-    "var dv=ms-best,ds=dv<60000?'+'+Math.floor(dv/1000)+'.'+('00'+dv%1000).slice(-3)+'s'"
+    "if(_hMode===0){"
+    "if(rank===0||best===0){s+='<td class=\"dt\">\\u2014</td>';}"
+    "else{var dv=ms-best;"
+    "var ds=dv<60000?'+'+Math.floor(dv/1000)+'.'+('00'+dv%1000).slice(-3)+'s'"
     ":'+'+Math.floor(dv/60000)+':'+('0'+Math.floor((dv%60000)/1000)).slice(-2)+'.'+('00'+dv%1000).slice(-3)+'s';"
-    "s+='<td class=\"dt\">'+ds+'</td>';}else{s+='<td class=\"dt\">\\u2014</td>';}"
+    "s+='<td class=\"dt\">'+ds+'</td>';}"
+    "}else{s+='<td class=\"dt\">\\u2014</td>';}"
     "s+='<td>'+med+'</td></tr>';}"
-    "s+='</table>';htbl.innerHTML=s;"
+    "for(var di=0;di<dnfs.length;di++){"
+    "s+='<tr style=\"opacity:.45;font-style:italic\"><td class=\"rk\">DNF</td><td colspan=\"3\">\\u2014</td></tr>';}"
+    "s+='</table>';"
+    "htbl.innerHTML=s;"
     "if(fl){var hp=document.getElementById('tab-hist');if(hp&&hp.classList.contains('act'))hp.scrollTop=0;}"
-    "hhdr.textContent='Verlauf \\u2014 '+d.histCnt+' Splits';}"
+    "hhdr.textContent='Verlauf \\u2014 '+d.histCnt+' L\\u00e4ufe';}"
     "function _togHist(){"
     "_hMode=_hMode===0?1:0;"
     "var btn=document.getElementById('h-vbtn');"
     "if(btn)btn.textContent=_hMode===0?'\\u23f1 Bestzeit':'\\uD83D\\uDCCB Fahrten';"
     "if(_lastHist!==-1)_hist({hist:_lastHist,bestMs:_lastBest,histCnt:_lastHist.length},false);}"
-    "var _firstPoll=true,_lastState3='';"
+    "var _firstPoll=true,_lastState2='';"
     "function _poll(){"
     "fetch('/state').then(function(r){return r.json();}).then(function(d){"
     "document.getElementById('_ld').className='ld on';_setRC(false);"
-    "var cls={WARTET:'si','KEIN SIG.':'se',LAEUFT:'sr','SPLIT-OK':'sd'};"
+    "var cls={WARTET:'si','KEIN ZIEL':'se',LAEUFT:'sr',ERGEBNIS:'sd'};"
     "var bdg=document.getElementById('st');"
     "bdg.textContent=d.state;bdg.className='bdg '+(cls[d.state]||'si');"
     "var cw=document.getElementById('cwrap');"
     "if(cw)cw.style.display=d.state==='LAEUFT'?'block':'none';"
+    "var rw=document.getElementById('rider-wrap');"
+    "if(rw){rw.style.display=d.rider?'block':'none';"
+    "var rid=document.getElementById('rider');if(rid)rid.textContent=d.rider||'';}"
     "if(d.state==='LAEUFT'){_S='LAEUFT';_startTimer(d.liveMs);"
     "var _te=document.getElementById('_T');if(_te)_te.textContent=_f(d.liveMs);}"
     "else{_stopTimer();_S=d.state;"
@@ -615,22 +691,10 @@ String buildHTML() {
     "_lastHist=d.hist;_lastBest=d.bestMs;"
     "if(d.histCnt!==_H||_firstPoll){_H=d.histCnt;_hist(d,fl);}"
     "_sig(d);_bat(d);_loraTab(d);"
-    "if(d.state==='SPLIT-OK'&&_lastState3!=='SPLIT-OK'&&!_firstPoll){"
-    "var ov=document.getElementById('res-ov');"
-    "if(ov){document.getElementById('ro-time').textContent=_f(d.lastMs);"
-    "document.getElementById('ro-name').textContent='';"
-    "var isBest=d.lastMs>0&&d.bestMs>0&&d.lastMs===d.bestMs;"
-    "var dEl=document.getElementById('ro-delta'),bEl=document.getElementById('ro-bst');"
-    "if(isBest){dEl.textContent='\\uD83C\\uDFC6 Neuer Bestzeit!';dEl.style.color='#f0a500';bEl.textContent='';}"
-    "else if(d.bestMs>0&&d.lastMs>0){dEl.textContent='+'+_f(d.lastMs-d.bestMs)+' zur Bestzeit';dEl.style.color='#aaa';"
-    "bEl.textContent='Bestzeit: '+_f(d.bestMs);}else{dEl.textContent='';bEl.textContent='';}"
-    "ov.style.display='flex';"
-    "if(_soundOn){_beep(880,.15);setTimeout(function(){_beep(660,.2);},200);}"
-    "if(navigator.vibrate)navigator.vibrate([200,100,200]);"
-    "setTimeout(function(){ov.style.display='none';},d.cfg&&d.cfg.result_show?d.cfg.result_show:8000);}}"
-    "if(!_firstPoll&&_lastState3!=='LAEUFT'&&d.state==='LAEUFT')_beep(880,.15);"
+    "if(d.state==='ERGEBNIS'&&_lastState2!=='ERGEBNIS'&&!_firstPoll)_showOv(d);"
+    "if(!_firstPoll&&_lastState2!=='LAEUFT'&&d.state==='LAEUFT')_beep(880,.15);"
     "if(d.bat&&d.bat.pct!==undefined)_batWarn(d.bat.pct);"
-    "_lastState3=d.state;"
+    "_lastState2=d.state;"
     "_firstPoll=false;"
     "}).catch(function(){document.getElementById('_ld').className='ld off';_setRC(true);setTimeout(_poll,1000);});}"
     "setInterval(_poll,2000);_poll();"
@@ -644,10 +708,12 @@ String buildHTML() {
     "function _unlockAudio(){"
     "if(!_actx)try{_actx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}"
     "if(_actx&&_actx.state==='suspended')_actx.resume();}"
-    "document.addEventListener('click',_unlockAudio,true);document.addEventListener('touchend',_unlockAudio,true);"
+    "document.addEventListener('click',_unlockAudio,true);"
+    "document.addEventListener('touchend',_unlockAudio,true);"
     "function _beep(freq,dur,vol){"
     "if(!_soundOn)return;"
-    "try{if(!_actx)_actx=new(window.AudioContext||window.webkitAudioContext)();"
+    "try{"
+    "if(!_actx)_actx=new(window.AudioContext||window.webkitAudioContext)();"
     "if(_actx.state==='suspended'){_actx.resume().then(function(){_beep(freq,dur,vol);});return;}"
     "var o=_actx.createOscillator(),g=_actx.createGain();"
     "o.connect(g);g.connect(_actx.destination);o.frequency.value=freq;"
@@ -670,6 +736,26 @@ String buildHTML() {
     "_evtTm=setTimeout(function(){t.style.display='none';},3000);}"
     "function _setRC(show){"
     "var b=document.getElementById('rc-banner');if(b)b.style.display=show?'block':'none';}"
+    "var _roTm=null;"
+    "function _showOv(d){"
+    "var ov=document.getElementById('res-ov');if(!ov)return;"
+    "document.getElementById('ro-time').textContent=_f(d.lastMs);"
+    "var nm=d.hist&&d.hist.length>0?d.hist[d.hist.length-1].n||'':'';"
+    "document.getElementById('ro-name').textContent=nm;"
+    "var isBest=d.lastMs>0&&d.bestMs>0&&d.lastMs===d.bestMs;"
+    "var dEl=document.getElementById('ro-delta'),bEl=document.getElementById('ro-bst');"
+    "if(isBest){dEl.textContent='\\uD83C\\uDFC6 Neue Bestzeit!';dEl.style.color='#f0a500';bEl.textContent='';}"
+    "else if(d.bestMs>0&&d.lastMs>0){"
+    "dEl.textContent='+'+_f(d.lastMs-d.bestMs)+' zur Bestzeit';dEl.style.color='#aaa';"
+    "bEl.textContent='Bestzeit: '+_f(d.bestMs);}"
+    "else{dEl.textContent='';bEl.textContent='';}"
+    "ov.style.display='flex';"
+    "if(isBest){_beep(660,.1);setTimeout(function(){_beep(880,.1);},150);setTimeout(function(){_beep(1100,.3);},300);}"
+    "else{_beep(660,.2);setTimeout(function(){_beep(880,.25);},250);}"
+    "if(navigator.vibrate)navigator.vibrate(isBest?[200,100,200,100,300]:[200,100,200]);"
+    "if(_roTm)clearTimeout(_roTm);"
+    "_roTm=setTimeout(_closeOv,d.cfg&&d.cfg.result_show?d.cfg.result_show:8000);}"
+    "function _closeOv(){var ov=document.getElementById('res-ov');if(ov)ov.style.display='none';if(_roTm)clearTimeout(_roTm);}"
     "function _batWarn(pct){"
     "var bw=document.getElementById('bat-warn');if(!bw)return;"
     "if(pct<=5){bw.style.display='block';bw.style.background='#f44336';bw.style.color='#fff';"
@@ -679,20 +765,23 @@ String buildHTML() {
     "else{bw.style.display='none';bw.className='';}}"
     "function _share(){"
     "var rows=document.querySelectorAll('#h-tbl tr');"
-    "var txt='MTB Split Ergebnisse\\n';"
+    "var txt='MTB Timer Ergebnisse\\n';"
     "rows.forEach(function(r){var t=r.innerText.replace(/\\t/g,' ');if(t.trim())txt+=t+'\\n';});"
-    "if(navigator.share){navigator.share({title:'MTB Split',text:txt}).catch(function(){_copyFb(txt);});return;}"
+    "if(navigator.share){navigator.share({title:'MTB Ergebnisse',text:txt}).catch(function(){_copyFb(txt);});return;}"
     "_copyFb(txt);}"
     "function _copyFb(txt){"
-    "try{var ta=document.createElement('textarea');"
+    "try{"
+    "var ta=document.createElement('textarea');"
     "ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';"
     "document.body.appendChild(ta);ta.select();"
-    "var ok=document.execCommand('copy');document.body.removeChild(ta);"
+    "var ok=document.execCommand('copy');"
+    "document.body.removeChild(ta);"
     "if(ok)_evtToast('\\uD83D\\uDCCB Kopiert!','#0d1f0d');"
     "else _evtToast('Tippe & halte zum Kopieren','#1a2a3a');"
     "}catch(e){_evtToast('Kopieren nicht m\\u00f6glich','#2a1a00');}}"
     "function doPing(){"
-    "var btn=document.getElementById('ping-btn'),res=document.getElementById('ping-res');"
+    "var btn=document.getElementById('ping-btn');"
+    "var res=document.getElementById('ping-res');"
     "btn.disabled=true;"
     "res.innerHTML='<span style=\"color:#ff9800\">&#128337; Sende Ping...</span>';"
     "fetch('/ping').then(function(r){return r.json();}).then(function(d){"
@@ -703,10 +792,12 @@ String buildHTML() {
     "var t0=Date.now();"
     "var ck=setInterval(function(){"
     "fetch('/state').then(function(r){return r.json();}).then(function(sd){"
-    "if(sd.since<4){clearInterval(ck);"
+    "if(sd.since<4){"
+    "clearInterval(ck);"
     "res.innerHTML='<span style=\"color:#4caf50\">&#10003; Antwort empfangen &bull; RSSI: '+sd.rssi+' dBm</span>';"
     "setTimeout(function(){btn.disabled=false;res.textContent='';},5000);}"
-    "else if(Date.now()-t0>8000){clearInterval(ck);"
+    "else if(Date.now()-t0>8000){"
+    "clearInterval(ck);"
     "res.innerHTML='<span style=\"color:#f44336\">&#10007; Keine Antwort (8 s)</span>';"
     "setTimeout(function(){btn.disabled=false;res.textContent='';},3000);}}"
     ").catch(function(){clearInterval(ck);btn.disabled=false;res.textContent='';});},500);"
@@ -729,14 +820,13 @@ String buildHTML() {
     "</nav>"
     "<div id='res-ov' style='display:none;position:fixed;inset:0;background:rgba(0,0,0,.93);"
     "z-index:200;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center'>"
-    "<div style='font-size:.9em;color:#555;margin-bottom:8px'>&#9654; SPLIT</div>"
+    "<div style='font-size:.9em;color:#555;margin-bottom:8px'>&#127937; ERGEBNIS</div>"
     "<div id='ro-name' style='font-size:1.1em;color:#aaa;margin-bottom:4px;min-height:1.4em'></div>"
     "<div id='ro-time' style='font-size:4.5em;font-weight:bold;color:#f0a500;"
     "font-variant-numeric:tabular-nums;line-height:1.1'></div>"
     "<div id='ro-delta' style='font-size:1.15em;color:#aaa;margin-top:12px'></div>"
     "<div id='ro-bst'  style='font-size:.88em;color:#555;margin-top:4px'></div>"
-    "<button onclick='document.getElementById(\"res-ov\").style.display=\"none\"' "
-    "style='margin-top:28px;background:#2a2a2c;color:#eee;"
+    "<button onclick='_closeOv()' style='margin-top:28px;background:#2a2a2c;color:#eee;"
     "border:none;border-radius:14px;padding:14px 48px;font-size:1em;cursor:pointer'>OK</button>"
     "</div>"
     "</body></html>";

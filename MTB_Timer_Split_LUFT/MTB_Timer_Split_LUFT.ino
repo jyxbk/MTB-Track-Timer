@@ -1,12 +1,11 @@
 // ============================================================
-//  SPLIT-NODE  v21
+//  SPLIT-NODE  LUFT v2
 //  MTB Downhill Zeitmessung – Heltec WiFi LoRa 32 V3
-//  Bibliotheken: RadioLib >= 6.6, U8g2 >= 2.35
+//  Sensor: BMP280 Luftdrucksensor in geschlossenem Schlauch
+//  Bibliotheken: RadioLib >= 6.6, U8g2 >= 2.35, Adafruit BMP280
 // ============================================================
-// ── Debug-Level ────────────────────────────────────────────
-//  0 = aus | 1 = Info | 2 = Verbose
 #define DEBUG_LEVEL  0
-#define TZ_OFFSET_SEC 7200  // Zeitzone: CEST=7200, CET=3600
+#define TZ_OFFSET_SEC 7200
 
 #if DEBUG_LEVEL >= 1
   #define DBG(tag, msg)    Serial.printf("[%8lu] %-9s %s\n",    millis(), tag, msg)
@@ -31,10 +30,11 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <Preferences.h>
+#include <Adafruit_BMP280.h>
 #include "esp_sleep.h"
 #include "esp_timer.h"
 
-// Forward-Declarations (display.ino, web_html.ino, web_handlers.ino)
+// Forward-Declarations
 void drawDisplay(unsigned long liveMs = 0);
 void showSleepProgress(unsigned long heldMs);
 String buildHTML();
@@ -44,6 +44,7 @@ void handleRoot();
 void handleCancel();
 void handleSetTime();
 void handleSettingsSave();
+void handleCalibrate();
 void handleSleep();
 void handleRestart();
 void handleManualPing();
@@ -55,6 +56,8 @@ void saveSettings();
 #define OLED_SDA   17
 #define OLED_SCL   18
 #define OLED_RST   21
+#define BMP_SDA    19
+#define BMP_SCL    20
 #define LORA_SCK    9
 #define LORA_MISO  11
 #define LORA_MOSI  10
@@ -62,21 +65,18 @@ void saveSettings();
 #define LORA_RST   12
 #define LORA_DIO1  14
 #define LORA_BUSY  13
-#define PLATE_PIN   2
 #define PRG_PIN     0
 #define LED_PIN    35
 #define VEXT_PIN        36
 #define BAT_ADC_PIN      1
 #define VBAT_READ_CTRL  37
 
-// ── LoRa (fix) ─────────────────────────────────────────────
 #define LORA_FREQ  868.0f
 #define LORA_BW    125.0f
 #define LORA_SF        7
 #define LORA_CR        5
 #define LORA_PWR      14
 
-// ── Feste Konstanten ───────────────────────────────────────
 #define DISP_REFRESH_MS   100UL
 #define LONG_PRESS_MS    3000UL
 #define DOUBLE_PRESS_MS   400UL
@@ -84,39 +84,43 @@ void saveSettings();
 #define MAX_HISTORY          20
 #define NAME_MAX_LEN         20
 #define NUM_PAGES             4
+#define BMP_POLL_MS           8UL
+#define PEER_TIMEOUT_S       90
 
-// ── RSSI Schwellenwerte ────────────────────────────────────
 #define RSSI_BAR5  (-65)
 #define RSSI_BAR4  (-75)
 #define RSSI_BAR3  (-85)
 #define RSSI_BAR2  (-95)
 
-#define PEER_TIMEOUT_S   90
-
 // ── Konfigurierbare Werte (NVS) ────────────────────────────
-uint32_t cfg_debounce_ms    = 500;
-uint32_t cfg_result_show_ms = 8000;
-uint32_t cfg_run_timeout_ms = 300000;
-uint32_t cfg_lora_comp_ms   = 0;
-uint32_t cfg_retry_interval = 2000;
-uint32_t cfg_bat_mah        = 1100;
-uint8_t  cfg_max_retries    = 3;
-uint8_t  cfg_contrast       = 255;
-uint8_t  cfg_plate_pin      = PLATE_PIN;
-bool     cfg_plate_nc       = false;
-char     cfg_ap_ssid[33]    = "MTB-Split-Node";
-char     cfg_ap_pass[64]    = "";
-uint8_t  cfg_lora_pwr       = 14;
-uint8_t  cfg_btn2_pin      = 255;
-uint32_t cfg_page_auto_ms  = 0;
+uint32_t cfg_debounce_ms          = 500;
+uint32_t cfg_result_show_ms       = 8000;
+uint32_t cfg_run_timeout_ms       = 300000;
+uint32_t cfg_lora_comp_ms         = 0;
+uint32_t cfg_retry_interval       = 2000;
+uint32_t cfg_bat_mah              = 1100;
+uint32_t cfg_pressure_threshold_pa = 80;
+uint32_t cfg_bmp_cal_delay_ms     = 3000;
+uint8_t  cfg_max_retries          = 3;
+uint8_t  cfg_contrast             = 255;
+char     cfg_ap_ssid[33]          = "MTB-Split-LUFT";
+char     cfg_ap_pass[64]          = "";
+uint8_t  cfg_lora_pwr             = 14;
+uint8_t  cfg_btn2_pin             = 255;
+uint32_t cfg_page_auto_ms         = 0;
 
 Preferences prefs;
 
-// ── Hardware ───────────────────────────────────────────────
 SX1262 radio = new Module(LORA_NSS, LORA_DIO1, LORA_RST, LORA_BUSY, SPI);
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0,
   U8X8_PIN_NONE, OLED_SCL, OLED_SDA);
 WebServer server(80);
+Adafruit_BMP280 bmp(&Wire1);
+
+// ── BMP280 Zustand ─────────────────────────────────────────
+float         bmpBaseline         = 0.0f;
+bool          bmpCalibrated       = false;
+unsigned long bmpLastPollMs       = 0;
 
 // ── RTC-Speicher ───────────────────────────────────────────
 RTC_DATA_ATTR unsigned long history[MAX_HISTORY];
@@ -126,11 +130,9 @@ RTC_DATA_ATTR uint8_t       historyCnt = 0;
 RTC_DATA_ATTR uint8_t       histHead   = 0;
 RTC_DATA_ATTR unsigned long bestTimeMs = 0;
 
-// ── Zustandsautomat ────────────────────────────────────────
 enum State : uint8_t { IDLE, ARMED, DONE };
 State appState = IDLE;
 
-// ── Laufvariablen ──────────────────────────────────────────
 unsigned long lastTimeMs   = 0;
 uint64_t      startRecvUs  = 0;
 unsigned long doneAt       = 0;
@@ -140,50 +142,31 @@ uint8_t       retryCnt     = 0;
 bool          ackReceived  = false;
 char          txBuf[24]    = "";
 unsigned long lastBatReadAt = 0;
-unsigned long lastDebugAt   = 0;
 unsigned long lastPageAt    = 0;
 
-// ── LED-Blink ──────────────────────────────────────────────
 uint8_t       ledBlinkCount = 0;
 unsigned long ledBlinkAt    = 0;
 
-// ── Batterie ───────────────────────────────────────────────
 float   batVoltage  = 0.0f;
 uint8_t batPercent  = 0;
 
-// ── Zeit-Sync ──────────────────────────────────────────────
 int64_t       timeOffsetMs  = 0;
 bool          timeIsSynced  = false;
 unsigned long lastSyncAt    = 0;
 
-// ── Display-Seiten ─────────────────────────────────────────
 uint8_t currentPage = 0;
 
-// ── Druckplatten-Interrupt ─────────────────────────────────
+// ── Sensor-Trigger (Software-Polling, kein ISR) ────────────
 volatile bool     plateFlag      = false;
-volatile uint64_t plateTriggerUs = 0;
-static portMUX_TYPE plateMux = portMUX_INITIALIZER_UNLOCKED;
+uint64_t          plateTriggerUs = 0;
 
-IRAM_ATTR void onPlateTrigger() {
-  if (!plateFlag) {
-    portENTER_CRITICAL_ISR(&plateMux);
-    plateTriggerUs = (uint64_t)esp_timer_get_time();
-    portEXIT_CRITICAL_ISR(&plateMux);
-    plateFlag = true;
-  }
-}
 static inline uint64_t readPlateTrigger() {
-  portENTER_CRITICAL(&plateMux);
-  uint64_t v = plateTriggerUs;
-  portEXIT_CRITICAL(&plateMux);
-  return v;
+  return plateTriggerUs;
 }
 
-// ── LoRa Verbindungsinfo ───────────────────────────────────
 float         loraRssi        = 0.0f;
 float         loraSnr         = 0.0f;
 unsigned long loraLastContact = 0;
-unsigned long lastHbAt        = 0;
 uint32_t      loraTxCount     = 0;
 uint32_t      loraTxFail      = 0;
 uint32_t      loraRxCount     = 0;
@@ -191,7 +174,6 @@ bool          loraHasRx       = false;
 float         loraRssiMin     = 0.0f;
 float         loraRssiMax     = 0.0f;
 
-// ── PRG-Taste ──────────────────────────────────────────────
 bool          btnPrev        = HIGH;
 unsigned long btnDownAt      = 0;
 uint8_t       pendingPresses = 0;
@@ -203,7 +185,6 @@ IRAM_ATTR void onLoRaRx() { rxFlag = true; }
 volatile bool btn2Flag = false;
 IRAM_ATTR void onBtn2() { btn2Flag = true; }
 
-// ── Hilfsfunktionen ────────────────────────────────────────
 void fmtTime(unsigned long ms, char* out) {
   sprintf(out, "%02u:%02u.%03u",
     (unsigned)(ms / 60000),
@@ -259,7 +240,6 @@ void addHistory(unsigned long t, const char* name) {
 void vextOn()  { pinMode(VEXT_PIN, OUTPUT); digitalWrite(VEXT_PIN, LOW);  }
 void vextOff() { pinMode(VEXT_PIN, OUTPUT); digitalWrite(VEXT_PIN, HIGH); }
 
-// ── Zusatztaste / Auto-Page ────────────────────────────────
 void advancePage() {
   currentPage = (currentPage + 1) % NUM_PAGES;
   lastPageAt  = millis();
@@ -270,11 +250,9 @@ void setupBtn2() {
   if (cfg_btn2_pin < 40) {
     pinMode(cfg_btn2_pin, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(cfg_btn2_pin), onBtn2, FALLING);
-    DBGF("BTN2", "Zusatztaste auf GPIO%u", cfg_btn2_pin);
   }
 }
 
-// ── LED (non-blocking) ─────────────────────────────────────
 void updateLED(unsigned long now) {
   static unsigned long lastToggle = 0;
   static bool          ledOn      = false;
@@ -301,7 +279,6 @@ void updateLED(unsigned long now) {
   }
 }
 
-// ── Deep Sleep ─────────────────────────────────────────────
 void goToSleep() {
   digitalWrite(LED_PIN, LOW);
   u8g2.clearBuffer();
@@ -319,29 +296,41 @@ void goToSleep() {
   esp_deep_sleep_start();
 }
 
-// ── LoRa senden ────────────────────────────────────────────
 void loRaSend(const char* msg) {
   int16_t rc = radio.transmit(msg);
-  if (rc == RADIOLIB_ERR_NONE) {
-    loraTxCount++;
-    DBGVF("LORA-TX", "\"%s\"  OK  (#%lu)", msg, loraTxCount);
-  } else {
-    loraTxFail++;
-    DBGF("LORA-TX",  "\"%s\"  FEHLER rc=%d  (#fail=%lu)", msg, rc, loraTxFail);
-  }
+  if (rc == RADIOLIB_ERR_NONE) loraTxCount++;
+  else loraTxFail++;
   radio.startReceive();
 }
 
-// ── Cancel Run ─────────────────────────────────────────────
 void cancelRun() {
   appState  = IDLE;
   plateFlag = false;
   currentPage = 0;
   drawDisplay();
-  DBG("STATE",  "IDLE ← Lauf abgebrochen");
 }
 
-// ── Display-Init ───────────────────────────────────────────
+// ── BMP280 Kalibrierung ────────────────────────────────────
+void runBmpCalibration() {
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_6x10_tf);
+  u8g2.drawStr(0, 20, "BMP280 LUFT-SENSOR");
+  u8g2.drawStr(0, 35, "Kalibrierung...");
+  u8g2.drawStr(0, 50, "Bitte warten!");
+  u8g2.sendBuffer();
+
+  int N = (int)(cfg_bmp_cal_delay_ms / 150);
+  if (N < 10) N = 10;
+  float sum = 0.0f;
+  for (int i = 0; i < N; i++) {
+    sum += bmp.readPressure();
+    delay(150);
+  }
+  bmpBaseline   = sum / (float)N;
+  bmpCalibrated = true;
+  plateFlag     = false;
+}
+
 void initDisplay() {
   pinMode(OLED_RST, OUTPUT);
   digitalWrite(OLED_RST, LOW);  delay(50);
@@ -356,34 +345,31 @@ void initDisplay() {
 void setup() {
   Serial.begin(115200);
 
-  prefs.begin("mtb-cfg3", true);
-  cfg_debounce_ms    = prefs.getUInt("debounce",   500);
-  cfg_result_show_ms = prefs.getUInt("result",     8000);
-  cfg_run_timeout_ms = prefs.getUInt("timeout",    300000);
-  cfg_lora_comp_ms   = prefs.getUInt("loracomp",   0);
-  cfg_retry_interval = prefs.getUInt("retryiv",    2000);
-  cfg_bat_mah        = prefs.getUInt("batmah",     1100);
-  cfg_max_retries    = prefs.getUChar("maxretry",  3);
-  cfg_contrast       = prefs.getUChar("contrast",  255);
-  cfg_plate_pin      = prefs.getUChar("platepin",  PLATE_PIN);
-  cfg_plate_nc       = prefs.getBool("platenc",    false);
-  cfg_lora_pwr       = prefs.getUChar("lorapwr",   14);
-  cfg_btn2_pin       = prefs.getUChar("btn2pin",   255);
-  cfg_page_auto_ms   = prefs.getUInt("autopage",   0);
+  prefs.begin("mtb-cfg3-lu", true);
+  cfg_debounce_ms           = prefs.getUInt("debounce",   500);
+  cfg_result_show_ms        = prefs.getUInt("result",     8000);
+  cfg_run_timeout_ms        = prefs.getUInt("timeout",    300000);
+  cfg_lora_comp_ms          = prefs.getUInt("loracomp",   0);
+  cfg_retry_interval        = prefs.getUInt("retryiv",    2000);
+  cfg_bat_mah               = prefs.getUInt("batmah",     1100);
+  cfg_pressure_threshold_pa = prefs.getUInt("bmpthresh",  80);
+  cfg_bmp_cal_delay_ms      = prefs.getUInt("bmpcaldly",  3000);
+  cfg_max_retries           = prefs.getUChar("maxretry",  3);
+  cfg_contrast              = prefs.getUChar("contrast",  255);
+  cfg_lora_pwr              = prefs.getUChar("lorapwr",   14);
+  cfg_btn2_pin              = prefs.getUChar("btn2pin",   255);
+  cfg_page_auto_ms          = prefs.getUInt("autopage",   0);
   prefs.getString("apssid", cfg_ap_ssid, sizeof(cfg_ap_ssid));
   prefs.getString("appass", cfg_ap_pass, sizeof(cfg_ap_pass));
   prefs.end();
   if (cfg_bat_mah == 2000) cfg_bat_mah = 1100;
-  if (strlen(cfg_ap_ssid) == 0) strcpy(cfg_ap_ssid, "MTB-Split-Node");
+  if (strlen(cfg_ap_ssid) == 0) strcpy(cfg_ap_ssid, "MTB-Split-LUFT");
 
-  pinMode(cfg_plate_pin, INPUT_PULLUP);
   pinMode(PRG_PIN,        INPUT_PULLUP);
   pinMode(LED_PIN,        OUTPUT);
   digitalWrite(LED_PIN, LOW);
-
   vextOn();
   delay(100);
-
   pinMode(VBAT_READ_CTRL, OUTPUT);
   digitalWrite(VBAT_READ_CTRL, HIGH);
 
@@ -418,8 +404,24 @@ void setup() {
   radio.setDio1Action(onLoRaRx);
   radio.startReceive();
 
-  attachInterrupt(digitalPinToInterrupt(cfg_plate_pin), onPlateTrigger,
-                  cfg_plate_nc ? RISING : FALLING);
+  Wire1.begin(BMP_SDA, BMP_SCL);
+  if (!bmp.begin(0x76)) {
+    u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_6x10_tf);
+    u8g2.drawStr(0, 28, "BMP280 FEHLER!");
+    u8g2.drawStr(0, 42, "Prüfe I2C 0x76");
+    u8g2.sendBuffer();
+    delay(5000);
+  } else {
+    bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,
+                    Adafruit_BMP280::SAMPLING_X1,
+                    Adafruit_BMP280::SAMPLING_X1,
+                    Adafruit_BMP280::FILTER_OFF,
+                    Adafruit_BMP280::STANDBY_MS_1);
+    delay(50);
+    runBmpCalibration();
+  }
+
   setupBtn2();
 
   WiFi.mode(WIFI_AP);
@@ -431,28 +433,26 @@ void setup() {
   server.on("/ping",          handleManualPing);
   server.on("/cancel",        handleCancel);
   server.on("/settime",       handleSetTime);
+  server.on("/calibrate",     handleCalibrate);
   server.on("/settings/save", HTTP_POST, handleSettingsSave);
   server.on("/sleep",         handleSleep);
   server.on("/restart",       handleRestart);
   server.begin();
 
-  DBG("BOOT",  "SPLIT-NODE v11 bereit");
-  DBGF("WIFI",  "SSID: %s  IP: %s", cfg_ap_ssid, WiFi.softAPIP().toString().c_str());
-  DBGF("CFG",   "Entprell=%ums  Timeout=%ums  Comp=%ums  Retry=%ums/#%u",
-       cfg_debounce_ms, cfg_run_timeout_ms, cfg_lora_comp_ms,
-       cfg_retry_interval, cfg_max_retries);
-  DBGF("CFG",   "Bat=%umAh  Kontrast=%u  Pin=%u  NC=%s",
-       cfg_bat_mah, cfg_contrast, cfg_plate_pin, cfg_plate_nc ? "ja" : "nein");
-
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_7x13B_tf);
   u8g2.drawStr(10, 18, "MTB TIMER");
   u8g2.setFont(u8g2_font_6x10_tf);
-  u8g2.drawStr(10, 32, "SPLIT NODE v21");
+  u8g2.drawStr(10, 32, "SPLIT LUFT v2");
   u8g2.drawHLine(0, 36, 128);
   char wln[24]; snprintf(wln, sizeof(wln), "WiFi: %.16s", cfg_ap_ssid);
   u8g2.drawStr(0, 48, wln);
-  u8g2.drawStr(0, 60, "IP:   192.168.4.1");
+  char bln[32];
+  if (bmpCalibrated)
+    snprintf(bln, sizeof(bln), "BMP: %.0f Pa OK", bmpBaseline);
+  else
+    strcpy(bln, "BMP: FEHLER!");
+  u8g2.drawStr(0, 60, bln);
   u8g2.sendBuffer();
 
   delay(2500);
@@ -467,20 +467,16 @@ void loop() {
   server.handleClient();
   updateLED(now);
 
-  // ── Batterie-Messung ───────────────────────────────────
   if (now - lastBatReadAt >= BAT_READ_MS) {
     lastBatReadAt = now;
     uint32_t adcSum = 0;
     for (int _i = 0; _i < 8; _i++) adcSum += analogReadMilliVolts(BAT_ADC_PIN);
     batVoltage = (adcSum / 8.0f) * 4.9f / 1000.0f;
     batPercent = voltageToPct(batVoltage);
-    DBGVF("BAT",    "%.2f V  %u%%  (~%u mAh)",
-          batVoltage, batPercent, (unsigned)(cfg_bat_mah * batPercent / 100));
     if (batPercent <= 5)       DBG("BAT",  "*** AKKU KRITISCH ***");
     else if (batPercent <= 15) DBG("BAT",  "Warnung: Akku niedrig");
   }
 
-  // ── PRG-Taste ──────────────────────────────────────────
   bool btnNow = digitalRead(PRG_PIN);
   if (btnNow == LOW && btnPrev == HIGH) {
     btnDownAt = now;
@@ -500,17 +496,12 @@ void loop() {
     if (pendingPresses >= 2 && appState == ARMED) {
       cancelRun();
     } else if (pendingPresses == 1) {
-      if (appState == DONE) {
-        appState = IDLE;
-        drawDisplay();
-      } else {
-        advancePage();
-      }
+      if (appState == DONE) { appState = IDLE; drawDisplay(); }
+      else advancePage();
     }
     pendingPresses = 0;
   }
 
-  // ── Zusatztaste ────────────────────────────────────────
   if (btn2Flag) {
     btn2Flag = false;
     static unsigned long btn2LastMs = 0;
@@ -518,14 +509,10 @@ void loop() {
       btn2LastMs = now;
       if (appState == DONE) { appState = IDLE; drawDisplay(); }
       else advancePage();
-      DBGV("BTN2", "Seite weitergeschaltet");
     }
   }
 
-  // ── Auto-Page ──────────────────────────────────────────
-  if (cfg_page_auto_ms > 0
-      && appState != ARMED
-      && (now - lastPageAt) >= cfg_page_auto_ms) {
+  if (cfg_page_auto_ms > 0 && appState != ARMED && (now - lastPageAt) >= cfg_page_auto_ms) {
     advancePage();
   }
 
@@ -544,7 +531,6 @@ void loop() {
       if (!loraHasRx || loraRssi < loraRssiMin) loraRssiMin = loraRssi;
       if (!loraHasRx || loraRssi > loraRssiMax) loraRssiMax = loraRssi;
       loraHasRx = true;
-      DBGVF("LORA-RX", "\"%s\"  RSSI=%d dBm  SNR=%.1f dB", msg.c_str(), (int)loraRssi, loraSnr);
 
       if (msg.startsWith("STX")) {
         startRecvUs  = (uint64_t)esp_timer_get_time();
@@ -553,33 +539,35 @@ void loop() {
         ackReceived  = false;
         appState     = ARMED;
         drawDisplay();
-        DBGF("STATE",  "ARMED ← STX  (startRecvUs=%llu)", startRecvUs);
       }
-      if (msg == "ACK" && appState == DONE) {
-        ackReceived = true;
-        DBG("LORA-RX", "ACK – Split bestätigt");
-      }
-      if (msg == "PNG") {
-        loRaSend("POG");
-        DBGV("LORA-RX", "PNG → POG gesendet");
-      }
+      if (msg == "ACK" && appState == DONE) ackReceived = true;
+      if (msg == "PNG") loRaSend("POG");
       if (msg.startsWith("TSY:")) {
         int64_t rxTs = (int64_t)atoll(msg.c_str() + 4);
         if (rxTs > 1000000000000LL) {
           timeOffsetMs = rxTs - (int64_t)millis();
           timeIsSynced = true;
           lastSyncAt   = millis();
-          DBGF("SYNC",   "TSY – Zeit synchronisiert (Offset=%lld ms)", timeOffsetMs);
         }
       }
-      if (msg == "CAN" && appState == ARMED) {
-        cancelRun();
-        DBG("STATE",  "IDLE ← CAN empfangen");
-      }
+      if (msg == "CAN" && appState == ARMED) cancelRun();
     }
   }
 
-  // ── Druckplatte Split (Interrupt) ──────────��───────────
+  // ── BMP280 Luftdruck-Polling (Sensor-Trigger) ──────────
+  if (bmpCalibrated && !plateFlag && appState == ARMED
+      && (now - bmpLastPollMs) >= BMP_POLL_MS) {
+    bmpLastPollMs = now;
+    float p = bmp.readPressure();
+    if (p > (bmpBaseline + (float)cfg_pressure_threshold_pa)) {
+      plateTriggerUs = (uint64_t)esp_timer_get_time();
+      plateFlag      = true;
+      DBGF("LUFT", "Trigger! p=%.1f base=%.1f delta=%.1f Pa",
+           p, bmpBaseline, p - bmpBaseline);
+    }
+  }
+
+  // ── Split-Trigger (Polling-Trigger) ────────────────────
   if (plateFlag && appState == ARMED) {
     plateFlag = false;
     uint64_t safeTrigUs = readPlateTrigger();
@@ -594,7 +582,7 @@ void loop() {
       if (bestTimeMs == 0 || elapsedMs < bestTimeMs) bestTimeMs = elapsedMs;
       addHistory(elapsedMs, "Split");
       ledBlinkCount = 6; ledBlinkAt = now;
-      sprintf(txBuf, "SPL:%lu", (unsigned long)elapsedRaw);  // µs-Wert
+      sprintf(txBuf, "SPL:%lu", (unsigned long)elapsedRaw);
       loRaSend(txBuf);
       retryCnt    = 0;
       ackReceived = false;
@@ -602,15 +590,9 @@ void loop() {
       doneAt      = now;
       appState    = DONE;
       drawDisplay();
-      char tbuf[12]; fmtTime(elapsedMs, tbuf);
-      bool isBestS = (bestTimeMs > 0 && elapsedMs == bestTimeMs);
-      DBGF("RESULT",  "%s%s  (%luus roh)",
-           tbuf, isBestS ? "  *** BESTZEIT ***" : "",
-           (unsigned long)elapsedRaw);
     }
   }
 
-  // ── Anzeige-Refresh ────────────────────────────────────
   if (appState == ARMED) {
     if ((now - lastDispRefr) >= DISP_REFRESH_MS) {
       lastDispRefr = now;
@@ -622,34 +604,21 @@ void loop() {
     drawDisplay();
   }
 
-  // ── Lauf-Timeout ───────────────────────────────────────
   if (appState == ARMED) {
     uint64_t curUs = (uint64_t)esp_timer_get_time();
     if ((curUs - startRecvUs) / 1000 > cfg_run_timeout_ms) {
       appState = IDLE;
       drawDisplay();
-      DBGF("STATE",  "IDLE ← Timeout nach %lus", cfg_run_timeout_ms / 1000);
     }
   }
 
-  // ── Heartbeat ──────────────────────────────────────────
-  if (now - lastHbAt >= 25000) {
-    lastHbAt = now;
-    if (appState == IDLE) {
-      loRaSend("HBT");
-      DBGV("HBT",    "HBT gesendet");
-    }
-  }
-
-  // ── Ergebnis-Retries ───────────────────────────────────
-  if (appState == DONE && !ackReceived && retryCnt < cfg_max_retries && (now - lastRetryAt) >= cfg_retry_interval) {
+  if (appState == DONE && !ackReceived && retryCnt < cfg_max_retries
+      && (now - lastRetryAt) >= cfg_retry_interval) {
     loRaSend(txBuf);
     lastRetryAt = now;
     retryCnt++;
-    DBGF("RETRY",  "#%u/%u  SPL neu gesendet", retryCnt, cfg_max_retries);
   }
 
-  // ── Ergebnis-Anzeigedauer ──────────────────────────────
   if (appState == DONE && (now - doneAt) >= cfg_result_show_ms) {
     appState = IDLE;
     drawDisplay();

@@ -76,9 +76,11 @@ String buildState() {
   j += ",\"lora_pwr\":";    j += cfg_lora_pwr;
   j += ",\"btn2_pin\":";   j += cfg_btn2_pin;
   j += ",\"auto_page\":";  j += cfg_page_auto_ms;
-  j += ",\"contrast\":";   j += cfg_contrast;
-  j += ",\"plate_pin\":";  j += cfg_plate_pin;
-  j += ",\"plate_nc\":";   j += cfg_plate_nc ? "true" : "false";
+  j += ",\"contrast\":";     j += cfg_contrast;
+  j += ",\"bmp_thresh\":";  j += cfg_pressure_threshold_pa;
+  j += ",\"bmp_cal_delay\":"; j += cfg_bmp_cal_delay_ms;
+  j += ",\"bmp_calibrated\":"; j += bmpCalibrated ? "true" : "false";
+  j += ",\"bmp_baseline\":"; j += (uint32_t)bmpBaseline;
   j += ",\"bat_mah\":";    j += cfg_bat_mah;
   j += "}";
   // ── Versetzter Start-Modus ──────────────────────────────
@@ -141,8 +143,12 @@ void sendHTML() {
   if      (appState == RUNNING)     liveMs = now - runStartAt;
   else if (appState == RESULT)      liveMs = lastTimeMs;
   else if (appState == LAP_RUNNING) liveMs = now - lapRoundStart;
-  const char* lqCls = (loraLastContact == 0) ? "e" : (since < 35) ? "ok" : (since < 70) ? "w" : "e";
-  const char* lqTxt = (loraLastContact == 0) ? "Kein Kontakt" : (since < 35) ? "Verbunden" : (since < 70) ? "Schwach" : "Getrennt";
+  // "Verbindung" = Timing-Peer (Finish/Split) erreichbar, nicht nur irgendein LoRa-Paket
+  unsigned long fSinceQ = (finishLastContact > 0) ? (now - finishLastContact) / 1000 : 9999UL;
+  unsigned long sSinceQ = (splitLastContact  > 0) ? (now - splitLastContact)  / 1000 : 9999UL;
+  unsigned long peerSince = (fSinceQ < sSinceQ) ? fSinceQ : sSinceQ;
+  const char* lqCls = peerSince >= 9999 ? "e" : peerSince < 35 ? "ok" : peerSince < 70 ? "w" : "e";
+  const char* lqTxt = peerSince >= 9999 ? "Kein Peer" : peerSince < 35 ? "Verbunden" : peerSince < 70 ? "Schwach" : "Getrennt";
 
   int bars = 0;
   if (loraLastContact > 0 && since < 300) {
@@ -782,18 +788,24 @@ void sendHTML() {
     "<small class='hint'>OLED-Helligkeit (0&ndash;255) &ndash; niedrigere Werte schonen Akku</small></div>"
     "</div>";
 
-  html += "<div class='shdr'>&#9000; Sensor</div>";
+  html += "<div class='shdr'>&#128168; Luftdruck-Sensor (BMP280)</div>";
   html += "<div class='sg'>"
-    "<div class='sr2'><div class='sl'><span class='slb'>GPIO Pin</span>"
-    "<input type='number' name='platepin' value='" + String(cfg_plate_pin) + "' min='0' max='39'></div>"
-    "<small class='hint'>Pin des Drucksensors (Neustart nach &Auml;nderung)</small></div>"
-    "<div class='sr2'><div class='sl'><span class='slb'>Sensor-Typ</span></div>"
-    "<div class='srow'>"
-    "<label><input type='radio' name='platenc' value='0'" + String(!cfg_plate_nc ? " checked" : "") +
-    "> NO</label>"
-    "<label><input type='radio' name='platenc' value='1'" + String(cfg_plate_nc ? " checked" : "") +
-    "> NC</label></div>"
-    "<small class='hint'>NO = schlie&szlig;t bei Ausl&ouml;sung &bull; NC = &ouml;ffnet bei Ausl&ouml;sung</small></div>"
+    "<div class='sr2'><div class='sl'><span class='slb'>Druckschwelle (Pa)</span>"
+    "<input type='number' name='bmpthresh' value='" + String(cfg_pressure_threshold_pa) + "' min='10' max='5000' inputmode='numeric'></div>"
+    "<small class='hint'>Drucksprung ab dem ein Trigger ausgel&ouml;st wird &bull; Standard: 80 Pa</small></div>"
+    "<div class='sr2'><div class='sl'><span class='slb'>Kalibrierungszeit (ms)</span>"
+    "<input type='number' name='bmpcaldly' value='" + String(cfg_bmp_cal_delay_ms) + "' min='1000' max='10000' inputmode='numeric'></div>"
+    "<small class='hint'>Wartezeit nach Einschalten vor Kalibrierung &bull; Standard: 3000 ms</small></div>"
+    "<div class='sr2'>"
+    "<div style='display:flex;align-items:center;justify-content:space-between'>"
+    "<div><span class='slb'>Basisdruck</span>"
+    "<div style='color:#aaa;font-size:.9em'>" + String((uint32_t)bmpBaseline) + " Pa " +
+    (bmpCalibrated ? "<span style='color:#4cd964'>&#10003; OK</span>" : "<span style='color:#ff3b30'>&#10007; Fehler</span>") +
+    "</div></div>"
+    "<button type='button' onclick=\"fetch('/calibrate').then(r=>r.json()).then(d=>{if(d.ok)alert('Kalibriert: '+d.baseline+' Pa');else alert('Fehler!')})\" "
+    "style='background:#1c1c1e;color:#f0a500;border:1px solid #333;border-radius:8px;padding:8px 14px;font-size:.85em;cursor:pointer'>"
+    "&#8635; Neu kalibrieren</button></div>"
+    "<small class='hint'>Schlauch nicht bet&auml;tigen w&auml;hrend der Kalibrierung</small></div>"
     "</div>";
 
   html += "<div class='shdr'>&#128065; Display</div>";
@@ -851,13 +863,20 @@ void sendHTML() {
     "document.querySelectorAll('.msbtn').forEach(function(b){b.classList.remove('act')});"
     "document.getElementById('msc-duel').style.display=id==='duel'?'block':'none';"
     "document.getElementById('msc-lap').style.display=id==='lap'?'block':'none';"
+    "document.getElementById('msc-stag').style.display=id==='stag'?'block':'none';"
     "el.classList.add('act');"
     "localStorage.setItem('_msw',id);}"
     "(function(){"
     "fetch('/settime?ts='+Date.now()).catch(function(){});"
     "var p=new URLSearchParams(location.search);"
-    "if(p.get('saved')==='1')document.getElementById('toast-ok').style.display='block';"
-    "if(p.get('restart')==='1')document.getElementById('toast-rs').style.display='block';"
+    "if(p.get('saved')==='1'){"
+    "document.getElementById('toast-ok').style.display='block';"
+    "setTimeout(function(){document.getElementById('toast-ok').style.display='none';},3000);"
+    "history.replaceState(null,'',location.pathname+(p.get('tab')?'?tab='+p.get('tab'):''));}"
+    "if(p.get('restart')==='1'){"
+    "document.getElementById('toast-rs').style.display='block';"
+    "setTimeout(function(){document.getElementById('toast-rs').style.display='none';},5000);"
+    "history.replaceState(null,'',location.pathname+(p.get('tab')?'?tab='+p.get('tab'):''));}"
     "function _initNav(){"
     "var t=p.get('tab')||localStorage.getItem('_tab')||'live';"
     "var el=document.getElementById('bn-'+t)||document.getElementById('bn-live');"
@@ -900,8 +919,9 @@ void sendHTML() {
     "if(e)e.textContent=(d.timeSynced&&d.syncAgo<300)?'\\u2713 Uhr sync':'\\u26A0 Uhr nicht sync';}"
     "function _loraTab(d){"
     "var r=_mkSig(d);"
-    "var lc=d.since>=9999?'e':d.since<35?'ok':d.since<70?'w':'e';"
-    "var lt=d.since>=9999?'Kein Kontakt':d.since<35?'Verbunden':d.since<70?'Schwach':'Getrennt';"
+    "var ps=Math.min(d.finSince!==undefined?d.finSince:9999,d.splSince!==undefined?d.splSince:9999);"
+    "var lc=ps>=9999?'e':ps<35?'ok':ps<70?'w':'e';"
+    "var lt=ps>=9999?'Kein Peer':ps<35?'Verbunden':ps<70?'Schwach':'Getrennt';"
     "var e;e=document.getElementById('lora-q-badge');if(e){e.className=lc;e.textContent=lt;}"
     "e=document.getElementById('lora-sig2');if(e)e.innerHTML=r.sk+\" <span class='\"+lc+\"'>\"+lt+\"</span>\";"
     "e=document.getElementById('lora-since');if(e)e.textContent=d.since<9999?'vor '+d.since+' s':'\\u2014';"

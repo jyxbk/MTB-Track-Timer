@@ -120,11 +120,11 @@ void drawSyncPage() {
     u8g2.drawStr(0, 26, "Nicht synchronisiert");
     u8g2.drawStr(0, 37, "> Browser oeffnen");
   } else {
-    int64_t ts = nowUnixMs() / 1000LL;
+    int64_t ts = nowUnixMs() / 1000LL + TZ_OFFSET_SEC;
     unsigned hh = (unsigned)((ts % 86400LL) / 3600LL);
     unsigned mm = (unsigned)((ts % 3600LL) / 60LL);
     unsigned ss2 = (unsigned)(ts % 60LL);
-    snprintf(buf, sizeof(buf), "%02u:%02u:%02u UTC", hh, mm, ss2);
+    snprintf(buf, sizeof(buf), "%02u:%02u:%02u", hh, mm, ss2);
     u8g2.drawStr(0, 24, buf);
     unsigned long ago = (millis() - lastSyncAt) / 1000UL;
     if (ago < 60)   snprintf(buf, sizeof(buf), "Sync: vor %lus", ago);

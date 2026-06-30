@@ -74,23 +74,8 @@ void handleRestart() {
   delay(400); ESP.restart();
 }
 void handleManualPing() {
-  int state = radio.transmit("POG");
-  if (state==RADIOLIB_ERR_NONE){loraTxCount++;}else{loraTxFail++;}
-  server.send(200,"application/json","{\"sent\":true}");
-}
-void handleOtaPage() {
-  server.send(200,"text/html; charset=utf-8","<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>OTA – ZIEL LILYGO</title><style>body{font-family:Arial;background:#0a0a0a;color:#eee;padding:20px;max-width:420px}h2{color:#f0a500}input[type=file]{width:100%;margin:10px 0}.btn{background:#1a3a1a;color:#4caf50;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;margin-top:8px}.warn{color:#ff9800;font-size:.85em}</style></head><body><h2>&#128640; Firmware-Update (ZIEL LILYGO)</h2><p class='warn'>&#9888; Ger&auml;t startet nach dem Update neu.</p><form method='POST' action='/update' enctype='multipart/form-data'><label>Firmware-Datei (.bin):</label><input type='file' name='firmware' accept='.bin' required><br><button class='btn' type='submit'>&#11014; Hochladen</button></form><br><a href='/'>&#8592; Zur&uuml;ck</a></body></html>");
-}
-void handleOtaUpload() {
-  server.sendHeader("Connection","close");
-  server.send(200,"text/html; charset=utf-8",Update.hasError()?"<h2 style='color:#f44'>Fehler!</h2>":"<h2 style='color:#4caf50'>OK!</h2><p>Neustart...</p>");
-  delay(500); ESP.restart();
-}
-void handleOtaStream() {
-  HTTPUpload& u=server.upload();
-  if(u.status==UPLOAD_FILE_START){if(!Update.begin(UPDATE_SIZE_UNKNOWN))Update.printError(Serial);}
-  else if(u.status==UPLOAD_FILE_WRITE){if(Update.write(u.buf,u.currentSize)!=u.currentSize)Update.printError(Serial);}
-  else if(u.status==UPLOAD_FILE_END){if(Update.end(true))Serial.printf("[OTA] %u Bytes\n",u.totalSize);else Update.printError(Serial);}
+  loRaSend("PNG");
+  server.send(200, "application/json", "{\"sent\":true}");
 }
 void handleExport() {
   if (sdPresent) {

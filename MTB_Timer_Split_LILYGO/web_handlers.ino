@@ -56,11 +56,10 @@ void handleSettingsSave() {
 
 void handleSleep(){server.send(200,"text/html; charset=utf-8","<!DOCTYPE html><html><head><meta charset='utf-8'><style>body{background:#0a0a0a;color:#aaa;font-family:Arial;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center}p{font-size:1.1em}</style></head><body><p>&#128274; Ger&auml;t schaltet ab...</p></body></html>");delay(400);goToSleep();}
 void handleRestart(){server.send(200,"text/html; charset=utf-8","<!DOCTYPE html><html><head><meta charset='utf-8'><meta http-equiv='refresh' content='6;url=/'><style>body{background:#0a0a0a;color:#aaa;font-family:Arial;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center}p{font-size:1.1em}</style></head><body><p>&#128260; Neustart...</p></body></html>");delay(400);ESP.restart();}
-void handleManualPing(){int s=radio.transmit("POG");if(s==RADIOLIB_ERR_NONE)loraTxCount++;else loraTxFail++;server.send(200,"application/json","{\"sent\":true}");}
-
-void handleOtaPage(){server.send(200,"text/html; charset=utf-8","<!DOCTYPE html><html><head><meta charset='utf-8'><title>OTA – SPLIT LILYGO</title><style>body{font-family:Arial;background:#0a0a0a;color:#eee;padding:20px}h2{color:#f0a500}input[type=file]{width:100%;margin:10px 0}.btn{background:#1a3a1a;color:#4caf50;border:none;padding:10px 20px;border-radius:8px;cursor:pointer}</style></head><body><h2>&#128640; Firmware-Update (SPLIT LILYGO)</h2><form method='POST' action='/update' enctype='multipart/form-data'><label>Firmware (.bin):</label><input type='file' name='firmware' accept='.bin' required><br><button class='btn' type='submit'>&#11014; Hochladen</button></form><br><a href='/'>&#8592; Zur&uuml;ck</a></body></html>");}
-void handleOtaUpload(){server.sendHeader("Connection","close");server.send(200,"text/html; charset=utf-8",Update.hasError()?"<h2 style='color:#f44'>Fehler!</h2>":"<h2 style='color:#4caf50'>OK!</h2>");delay(500);ESP.restart();}
-void handleOtaStream(){HTTPUpload& u=server.upload();if(u.status==UPLOAD_FILE_START){if(!Update.begin(UPDATE_SIZE_UNKNOWN))Update.printError(Serial);}else if(u.status==UPLOAD_FILE_WRITE){if(Update.write(u.buf,u.currentSize)!=u.currentSize)Update.printError(Serial);}else if(u.status==UPLOAD_FILE_END){if(Update.end(true))Serial.printf("[OTA] %u Bytes\n",u.totalSize);else Update.printError(Serial);}}
+void handleManualPing() {
+  loRaSend("PNG");
+  server.send(200, "application/json", "{\"sent\":true}");
+}
 
 void handleExport() {
   if (sdPresent) {

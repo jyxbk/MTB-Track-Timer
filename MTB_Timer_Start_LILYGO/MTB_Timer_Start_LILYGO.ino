@@ -1,5 +1,5 @@
 // ============================================================
-//  START-NODE  v11  –  LILYGO TTGO T3 V1.6.1 (ESP32-PICO-D4 + SX1276)
+//  START-NODE  v24  –  LILYGO TTGO T3 V1.6.1 (ESP32-PICO-D4 + SX1276)
 //  MTB Downhill Zeitmessung
 //
 //  Arduino IDE Board: "TTGO LoRa32-OLED"
@@ -7,7 +7,8 @@
 // ============================================================
 // ── Debug-Level ────────────────────────────────────────────
 //  0 = aus  |  1 = Info  |  2 = Verbose
-#define DEBUG_LEVEL  2
+#define DEBUG_LEVEL  0
+#define TZ_OFFSET_SEC 7200  // Zeitzone: CEST=7200, CET=3600
 
 #if DEBUG_LEVEL >= 1
   #define DBG(tag, msg)    Serial.printf("[%8lu] %-9s %s\n",    millis(), tag, msg)
@@ -35,7 +36,6 @@
 #include <SD.h>
 #include "esp_sleep.h"
 #include "esp_timer.h"
-#include <Update.h>
 
 // ESP32 Arduino Core 3.x Kompatibilität
 #ifndef HSPI
@@ -85,7 +85,7 @@
 #define MAX_HISTORY          20
 #define NAME_MAX_LEN         20
 #define DUEL_MAX_RIDERS      10
-#define NUM_PAGES             4
+#define NUM_PAGES             5
 
 // ── RSSI Schwellenwerte ────────────────────────────────────
 #define RSSI_BAR5  (-65)
@@ -109,6 +109,7 @@ char     cfg_ap_pass[64]    = "";
 uint8_t  cfg_btn2_pin       = 255;   // 255 = deaktiviert
 uint32_t cfg_page_auto_ms   = 0;     // 0 = deaktiviert (in ms)
 uint8_t  cfg_lora_pwr       = 14;    // Sendeleistung dBm (2–20)
+uint8_t  cfg_stag_offset_s  = 30;   // Versatz-Offset Sekunden (5–255)
 // ── SD-Tracking ─────────────────────────────────────────────
 uint8_t  cfg_track_id       = 0;     // Aktive Strecken-ID (0=keine)
 uint8_t  cfg_rider_id       = 0;     // Aktiver Fahrer-ID (0=kein)
@@ -209,6 +210,23 @@ RTC_DATA_ATTR uint8_t duelStartIdx = 0;
 uint8_t duelSetupCount = 0;
 uint8_t duelSetupStep  = 0;
 
+// ── Versetzter Start-Modus (RTC) ───────────────────────────
+RTC_DATA_ATTR bool    stagMode     = false;
+RTC_DATA_ATTR bool    stagDone     = false;
+RTC_DATA_ATTR uint8_t stagCount    = 0;
+RTC_DATA_ATTR uint8_t stagStarted  = 0;
+RTC_DATA_ATTR uint8_t stagFinished = 0;
+RTC_DATA_ATTR char          stagRiders[DUEL_MAX_RIDERS][NAME_MAX_LEN + 1];
+RTC_DATA_ATTR unsigned long stagStartMs[DUEL_MAX_RIDERS];
+RTC_DATA_ATTR unsigned long stagTimes[DUEL_MAX_RIDERS];
+RTC_DATA_ATTR uint16_t      stagFinishedMask;
+unsigned long stagLastStartMs = 0;
+uint8_t       stagArmedFor    = 0xFF;
+unsigned long stagRearmAt     = 0;
+uint8_t       stagRearmIdx    = 0xFF;
+uint8_t stagSetupCount = 0;
+uint8_t stagSetupStep  = 0;
+
 // ── Runden-Modus (RTC) ─────────────────────────────────────
 RTC_DATA_ATTR bool          lapMode       = false;
 RTC_DATA_ATTR uint8_t       lapRoundNum   = 0;
@@ -265,7 +283,6 @@ IRAM_ATTR void onLoRaRx() { rxFlag = true; }
 // ── Forward-Declarations ───────────────────────────────────
 void drawDisplay(unsigned long liveMs = 0);
 void showSleepProgress(unsigned long heldMs);
-void sendHTML();
 String buildState();
 void handleState();
 void handleRoot();
@@ -275,9 +292,6 @@ void handleSettingsSave();
 void handleSleep();
 void handleRestart();
 void handleManualPing();
-void handleOtaPage();
-void handleOtaUpload();
-void handleOtaStream();
 void handleExport();
 void handleReset();
 void handleDuelPage();
@@ -288,6 +302,13 @@ void handleDuelConfirm();
 void handleDuelGo();
 void handleDuelExit();
 void handleDuelSkip();
+void handleStagPage();
+void handleStagCount();
+void handleStagName();
+void handleStagNext();
+void handleStagConfirm();
+void handleStagGo();
+void handleStagExit();
 void handleLapStart();
 void handleLapStop();
 void handleLapReset();
@@ -500,7 +521,7 @@ void setupBtn2() {
 void setup() {
   Serial.begin(115200);
   delay(200);
-  DBG("BOOT", "START-NODE LILYGO v11 startet...");
+  DBG("BOOT", "START-NODE LILYGO v13 startet...");
 
   prefs.begin("mtb-cfg-l", true);
   cfg_debounce_ms    = prefs.getUInt("debounce",   500);
@@ -515,6 +536,7 @@ void setup() {
   cfg_btn2_pin       = prefs.getUChar("btn2pin",   255);
   cfg_page_auto_ms   = prefs.getUInt("autopage",   0);
   cfg_lora_pwr       = prefs.getUChar("lorapwr",   14);
+  cfg_stag_offset_s  = prefs.getUChar("stagoffset", 30);
   cfg_track_id       = prefs.getUChar("trackid",   0);
   cfg_rider_id       = prefs.getUChar("riderid",   0);
   cfg_condition      = prefs.getUChar("condition",  0);
@@ -537,6 +559,10 @@ void setup() {
     memset(historyTimestamp, 0, sizeof(historyTimestamp));
     lapMode = false; lapRoundNum = 0; lapRoundStart = 0; lapBestMs = 0; lapLastMs = 0;
     duelMode = false; duelDone = false; duelCount = 0; duelCurrent = 0;
+    stagMode = false; stagDone = false; stagCount = 0; stagStarted = 0; stagFinished = 0;
+    stagFinishedMask = 0;
+    memset(stagStartMs, 0, sizeof(stagStartMs));
+    memset(stagTimes,   0, sizeof(stagTimes));
   } else {
     if (historyCnt > 0) lastTimeMs = history[histPhys(historyCnt - 1)];
     if (lapMode) lapRoundStart = 0;
@@ -599,12 +625,17 @@ void setup() {
   server.on("/duelgo",        handleDuelGo);
   server.on("/duelexit",      handleDuelExit);
   server.on("/duelskip",      handleDuelSkip);
+  server.on("/stag",          handleStagPage);
+  server.on("/stagcount",     handleStagCount);
+  server.on("/stagname",      handleStagName);
+  server.on("/stagnext",      handleStagNext);
+  server.on("/stagconfirm",   handleStagConfirm);
+  server.on("/staggo",        handleStagGo);
+  server.on("/stagexit",      handleStagExit);
   server.on("/lapstart",      handleLapStart);
   server.on("/lapstop",       handleLapStop);
   server.on("/lapreset",      handleLapReset);
   server.on("/settings/save", HTTP_POST, handleSettingsSave);
-  server.on("/update",        HTTP_GET,  handleOtaPage);
-  server.on("/update",        HTTP_POST, handleOtaUpload, handleOtaStream);
   server.on("/sleep",         handleSleep);
   server.on("/restart",       handleRestart);
   server.on("/ping",          handleManualPing);
@@ -626,7 +657,7 @@ void setup() {
   server.on("/bestlist",      handleBestlist);
   server.begin();
 
-  DBG("BOOT",  "START-NODE LILYGO v11 bereit");
+  DBG("BOOT",  "START-NODE LILYGO v13 bereit");
   DBGF("WIFI",  "SSID: %s  IP: %s", cfg_ap_ssid, WiFi.softAPIP().toString().c_str());
   DBGF("CFG",   "Plate=GPIO%u  Btn2=GPIO%u  AutoPage=%lums",
        cfg_plate_pin,
@@ -638,7 +669,7 @@ void setup() {
   u8g2.setFont(u8g2_font_7x13B_tf);
   u8g2.drawStr(4, 18, "MTB TIMER");
   u8g2.setFont(u8g2_font_6x10_tf);
-  u8g2.drawStr(4, 32, "START  LILYGO v11");
+  u8g2.drawStr(4, 32, "START  LILYGO v24");
   u8g2.drawHLine(0, 36, 128);
   char wln[24]; snprintf(wln, sizeof(wln), "WiFi: %.16s", cfg_ap_ssid);
   u8g2.drawStr(0, 48, wln);
@@ -726,7 +757,23 @@ void loop() {
     plateFlag = false;
     uint64_t safeTrigUs = readPlateTrigger();
     unsigned long trigMs = (unsigned long)(safeTrigUs / 1000ULL);
-    if (appState == IDLE && (now - plateLastMs) >= cfg_debounce_ms) {
+    if (stagMode && stagStarted < stagCount && (now - plateLastMs) >= cfg_debounce_ms) {
+      bool offsetOk = (stagStarted == 0) ||
+                      ((now - stagLastStartMs) >= (unsigned long)cfg_stag_offset_s * 1000UL);
+      if (offsetOk) {
+        plateLastMs = now;
+        uint8_t idx = stagStarted++;
+        stagStartMs[idx]  = now;
+        stagLastStartMs   = now;
+        stagArmedFor      = idx;
+        char stxBuf[28];
+        snprintf(stxBuf, sizeof(stxBuf), "STX:%s", stagRiders[idx]);
+        loRaSend(stxBuf);
+        appState = RUNNING;
+        ledBlinkCount = 6; ledBlinkAt = now;
+        drawDisplay();
+      }
+    } else if (appState == IDLE && (now - plateLastMs) >= cfg_debounce_ms) {
       plateLastMs = now; runStartAt = trigMs;
       splitTimeMs = 0; splitRxAt = 0;
       ledBlinkCount = 6; ledBlinkAt = now;
@@ -808,7 +855,52 @@ void loop() {
       loraHasRx = true;
       DBGVF("LORA-RX", "\"%s\"  RSSI=%d dBm  SNR=%.1f dB", msg.c_str(), (int)loraRssi, loraSnr);
 
-      if (msg.startsWith("TIM:") && appState == RUNNING) {
+      if (msg.startsWith("TIM:") && stagMode && stagStarted > 0 && stagFinished < stagCount) {
+        finishLastContact = now;
+        char* ep; unsigned long raw_us = strtoul(msg.c_str() + 4, &ep, 10);
+        if (ep != msg.c_str() + 4 && raw_us > 0 && raw_us <= 3600000000UL) {
+          unsigned long t = (raw_us + 500UL) / 1000UL;
+          if (cfg_lora_comp_ms > 0 && t >= cfg_lora_comp_ms) t -= cfg_lora_comp_ms;
+          // FIFO: ältester nicht-fertiger Fahrer
+          uint8_t k = 0xFF;
+          for (uint8_t i = 0; i < stagStarted; i++) {
+            if (!(stagFinishedMask & (1u << i))) { k = i; break; }
+          }
+          if (k != 0xFF) {
+            // Zeitkorrektur falls Finish für anderen Fahrer gewappnet war
+            if (stagArmedFor != 0xFF && stagArmedFor < stagCount && stagArmedFor != k) {
+              long corr = (long)stagStartMs[stagArmedFor] - (long)stagStartMs[k];
+              if (corr > 0 && (unsigned long)corr < 3600000UL) t += (unsigned long)corr;
+            }
+            stagTimes[k] = t;
+            stagFinishedMask |= (1u << k);
+            stagFinished++;
+            addHistory(t, stagRiders[k]);
+            lastTimeMs = t;
+            if (bestTimeMs == 0 || t < bestTimeMs) bestTimeMs = t;
+            // Re-arm Finish für nächsten gestarteten-aber-nicht-fertigen Fahrer
+            uint8_t next = 0xFF;
+            for (uint8_t i = k + 1; i < stagStarted; i++) {
+              if (!(stagFinishedMask & (1u << i))) { next = i; break; }
+            }
+            stagArmedFor = next;
+            loRaSend("ACK");
+            // Re-Arm verzögert: erst nach 300ms damit Finish ACK verarbeiten und
+            // IDLE werden kann, bevor das neue STX ankommt
+            if (next != 0xFF) {
+              stagRearmIdx = next;
+              stagRearmAt  = millis() + 300;
+            }
+            if (stagFinished >= stagCount) {
+              stagDone = true; stagMode = false;
+              appState = RESULT; resultAt = now;
+            } else if (stagFinished >= stagStarted) {
+              appState = IDLE; // warten auf nächste Starts
+            }
+            currentPage = 0; drawDisplay();
+          } else { loRaSend("ACK"); }
+        }
+      } else if (msg.startsWith("TIM:") && appState == RUNNING) {
         finishLastContact = now;
         char* ep; unsigned long t = strtoul(msg.c_str() + 4, &ep, 10);
         if (ep != msg.c_str() + 4 && t > 0 && t <= 3600000000UL) {
@@ -850,5 +942,14 @@ void loop() {
         }
       }
     }
+  }
+
+  // ── Stag Re-Arm (verzögert nach ACK) ──────────────────────
+  if (stagRearmIdx != 0xFF && millis() >= stagRearmAt) {
+    char stxBuf[28];
+    snprintf(stxBuf, sizeof(stxBuf), "STX:%s", stagRiders[stagRearmIdx]);
+    loRaSend(stxBuf);
+    stagRearmIdx = 0xFF;
+    stagRearmAt  = 0;
   }
 }

@@ -137,6 +137,123 @@ void handleDuelSkip() {
   server.sendHeader("Location", "/"); server.send(303);
 }
 
+// ── Versetzter Start-Modus ─────────────────────────────────
+static String stagPageHead(const char* title) {
+  return String("<!DOCTYPE html><html><head><meta charset='utf-8'>"
+    "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+    "<title>") + title + "</title>"
+    "<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;"
+    "background:#0a0a0a;color:#eee;padding:20px;max-width:420px}"
+    "h1{color:#f0a500;margin:0 0 4px;font-size:1.2em}"
+    ".sub{color:#555;font-size:.8em;margin-bottom:16px}"
+    ".lb{color:#888;font-size:.75em;text-transform:uppercase;margin-bottom:8px}"
+    ".cnt{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}"
+    ".cnum{background:#1c1c1e;color:#f0a500;border:1px solid #333;border-radius:12px;"
+    "padding:14px 20px;text-decoration:none;font-size:1.1em;font-weight:bold}"
+    "input[type=text]{background:#1c1c1e;border:1px solid #333;border-radius:12px;"
+    "color:#eee;padding:12px 16px;font-size:1em;width:100%;box-sizing:border-box;margin:4px 0 8px}"
+    ".hint{color:#555;font-size:.75em;margin-bottom:16px}"
+    ".prog{background:#1c1c1e;border-radius:8px;height:6px;margin-bottom:16px}"
+    ".progb{background:#f0a500;border-radius:8px;height:6px}"
+    ".row{display:flex;justify-content:space-between;align-items:center;margin-top:16px}"
+    ".back{color:#888;text-decoration:none;font-size:.9em}"
+    ".ok{background:#f0a500;color:#000;border:none;border-radius:12px;"
+    "padding:12px 24px;font-size:1em;font-weight:bold;cursor:pointer;text-decoration:none}"
+    "ul.list{list-style:none;padding:0;margin:0 0 16px}"
+    "ul.list li{background:#1c1c1e;border-radius:10px;padding:10px 14px;margin-bottom:6px;"
+    "display:flex;align-items:center;gap:10px}"
+    "ul.list li span{color:#555;font-size:.8em;min-width:20px}"
+    ".info{background:#1c1c1e;border-radius:12px;padding:12px 14px;margin-bottom:12px;"
+    "font-size:.85em;color:#888}"
+    ".inf2{color:#f0a500;font-weight:bold}</style></head><body>";
+}
+
+void handleStagPage() {
+  String html = stagPageHead("Versetzter Start");
+  html += "<h1>&#9201; Versetzter Start</h1>"
+    "<div class='sub'>Schritt 1 von 3 &ndash; Anzahl der Fahrer</div>"
+    "<div class='info'>Offset: <span class='inf2'>" + String(cfg_stag_offset_s) +
+    " s</span> zwischen den Starts (einstellbar in Einst. &rarr; LoRa)</div>"
+    "<div class='lb'>Wie viele Fahrer?</div><div class='cnt'>";
+  for (int n = 2; n <= DUEL_MAX_RIDERS; n++)
+    html += "<a class='cnum' href='/stagcount?n=" + String(n) + "'>" + String(n) + "</a>";
+  html += "</div><div class='row'><a class='back' href='/'>&#8592; Abbrechen</a></div></body></html>";
+  server.send(200, "text/html; charset=utf-8", html);
+}
+
+void handleStagCount() {
+  int n = server.arg("n").toInt();
+  if (n < 2) n = 2; if (n > DUEL_MAX_RIDERS) n = DUEL_MAX_RIDERS;
+  stagSetupCount = (uint8_t)n; stagSetupStep = 0;
+  memset(stagRiders, 0, sizeof(stagRiders));
+  server.sendHeader("Location", "/stagname"); server.send(303);
+}
+
+void handleStagName() {
+  if (stagSetupCount == 0) { server.sendHeader("Location", "/stag"); server.send(303); return; }
+  int pct = (int)((stagSetupStep * 100) / stagSetupCount);
+  String html = stagPageHead("Fahrername");
+  html += "<h1>&#9201; Versetzter Start</h1><div class='sub'>Schritt 2 von 3 &ndash; Fahrer " +
+    String(stagSetupStep + 1) + " von " + String(stagSetupCount) + "</div>";
+  html += "<div class='prog'><div class='progb' style='width:" + String(pct) + "%'></div></div>";
+  html += "<form action='/stagnext' method='GET'><div class='lb'>Name</div>"
+    "<input type='text' name='name' maxlength='" + String(NAME_MAX_LEN) +
+    "' autofocus placeholder='Fahrername...' autocomplete='off'>"
+    "<div class='hint'>Max. " + String(NAME_MAX_LEN) + " Zeichen</div>"
+    "<div class='row'><a class='back' href='/stag'>&#8592; Neu starten</a>"
+    "<button type='submit' class='ok'>Weiter &#9658;</button></div></form></body></html>";
+  server.send(200, "text/html; charset=utf-8", html);
+}
+
+void handleStagNext() {
+  String name = server.arg("name"); name.trim();
+  if (name.length() == 0) name = "Fahrer " + String(stagSetupStep + 1);
+  if ((int)name.length() > NAME_MAX_LEN) name = name.substring(0, NAME_MAX_LEN);
+  strncpy(stagRiders[stagSetupStep], name.c_str(), NAME_MAX_LEN);
+  stagRiders[stagSetupStep][NAME_MAX_LEN] = '\0';
+  stagSetupStep++;
+  server.sendHeader("Location", stagSetupStep < stagSetupCount ? "/stagname" : "/stagconfirm");
+  server.send(303);
+}
+
+void handleStagConfirm() {
+  String html = stagPageHead("Versetzt bestätigen");
+  html += "<h1>&#9201; Versetzter Start</h1>"
+    "<div class='sub'>Schritt 3 von 3 &ndash; Startreihenfolge pr&uuml;fen</div>"
+    "<div class='info'>Offset: <span class='inf2'>" + String(cfg_stag_offset_s) +
+    " s</span> Mindestabstand zwischen zwei Starts</div>"
+    "<ul class='list'>";
+  for (uint8_t i = 0; i < stagSetupCount; i++)
+    html += "<li><span>" + String(i + 1) + ".</span>" +
+      (strlen(stagRiders[i]) > 0 ? htmlEsc(stagRiders[i]) : String("&mdash;")) + "</li>";
+  html += "</ul><div class='row'><a class='back' href='/stag'>&#8592; Neu starten</a>"
+    "<a class='ok' href='/staggo'>&#9658; Starten</a></div></body></html>";
+  server.send(200, "text/html; charset=utf-8", html);
+}
+
+void handleStagGo() {
+  stagCount = stagSetupCount;
+  stagStarted = 0; stagFinished = 0;
+  stagFinishedMask = 0; stagLastStartMs = 0;
+  stagArmedFor = 0xFF;
+  stagRearmIdx = 0xFF; stagRearmAt = 0;
+  memset(stagStartMs, 0, sizeof(stagStartMs));
+  memset(stagTimes,   0, sizeof(stagTimes));
+  stagMode = true; stagDone = false;
+  if (appState == RUNNING) { appState = IDLE; loRaSend("CAN"); }
+  server.sendHeader("Location", "/?tab=modus"); server.send(303);
+}
+
+void handleStagExit() {
+  stagMode = false; stagDone = false;
+  stagCount = 0; stagStarted = 0; stagFinished = 0;
+  stagFinishedMask = 0;
+  stagRearmIdx = 0xFF; stagRearmAt = 0;
+  if (appState == RUNNING) { appState = IDLE; loRaSend("CAN"); }
+  drawDisplay();
+  server.sendHeader("Location", "/?tab=modus"); server.send(303);
+}
+
 // ── Runden-Modus ───────────────────────────────────────────
 void handleLapStart() {
   if (appState == IDLE && !duelMode && !duelDone) {
@@ -188,7 +305,8 @@ void saveSettings() {
   prefs.putBool("platenc",   cfg_plate_nc);
   prefs.putUChar("btn2pin",  cfg_btn2_pin);
   prefs.putUInt("autopage",  cfg_page_auto_ms);
-  if (prefs.getUChar("lorapwr", 14) != cfg_lora_pwr) prefs.putUChar("lorapwr", cfg_lora_pwr);
+  if (prefs.getUChar("lorapwr",    14) != cfg_lora_pwr)       prefs.putUChar("lorapwr",    cfg_lora_pwr);
+  if (prefs.getUChar("stagoffset", 30) != cfg_stag_offset_s) prefs.putUChar("stagoffset", cfg_stag_offset_s);
   // Tracking-Felder
   if (prefs.getUChar("trackid",   0) != cfg_track_id)  prefs.putUChar("trackid",   cfg_track_id);
   if (prefs.getUChar("riderid",   0) != cfg_rider_id)  prefs.putUChar("riderid",   cfg_rider_id);
@@ -214,6 +332,8 @@ void handleSettingsSave() {
     cfg_lora_pwr = (uint8_t)constrain(server.arg("lorapwr").toInt(), 2, 20);
     radio.setOutputPower(cfg_lora_pwr);
   }
+  if (server.hasArg("stagoffset"))
+    cfg_stag_offset_s = (uint8_t)constrain(server.arg("stagoffset").toInt(), 5, 255);
   if (server.hasArg("batmah"))
     cfg_bat_mah = (uint32_t)constrain(server.arg("batmah").toInt(), 100, 10000);
   if (server.hasArg("contrast")) {
@@ -290,46 +410,6 @@ void handleManualPing() {
   bool sent = (appState == IDLE || appState == LAP_IDLE);
   if (sent) { lastPingAt = millis(); loRaSend("PNG"); }
   server.send(200, "application/json", sent ? "{\"sent\":true}" : "{\"sent\":false}");
-}
-
-void handleOtaPage() {
-  String html = "<!DOCTYPE html><html><head><meta charset='utf-8'>"
-    "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-    "<title>OTA – START LILYGO</title>"
-    "<style>body{font-family:Arial,sans-serif;background:#0a0a0a;color:#eee;padding:20px;max-width:420px}"
-    "h2{color:#f0a500}input[type=file]{width:100%;margin:10px 0;padding:6px}"
-    ".btn{display:inline-block;background:#1a3a1a;color:#4caf50;border:none;padding:10px 20px;"
-    "border-radius:8px;font-size:1em;cursor:pointer;text-decoration:none;margin-top:8px}"
-    ".warn{color:#ff9800;font-size:.85em;margin-top:6px}</style></head><body>"
-    "<h2>&#128640; Firmware-Update (START LILYGO)</h2>"
-    "<p class='warn'>&#9888; Ger&auml;t startet nach dem Update automatisch neu.</p>"
-    "<form method='POST' action='/update' enctype='multipart/form-data'>"
-    "<label>Firmware-Datei (.bin):</label>"
-    "<input type='file' name='firmware' accept='.bin' required>"
-    "<br><button class='btn' type='submit'>&#11014; Hochladen &amp; Flashen</button>"
-    "</form><br><a href='/'>&#8592; Zur&uuml;ck</a></body></html>";
-  server.send(200, "text/html; charset=utf-8", html);
-}
-
-void handleOtaUpload() {
-  server.sendHeader("Connection", "close");
-  server.send(200, "text/html; charset=utf-8",
-    Update.hasError() ?
-    "<h2 style='color:#f44'>Update fehlgeschlagen!</h2><a href='/update'>Nochmal versuchen</a>" :
-    "<h2 style='color:#4caf50'>Update erfolgreich!</h2><p>Ger&auml;t startet neu...</p>");
-  delay(500); ESP.restart();
-}
-
-void handleOtaStream() {
-  HTTPUpload& upload = server.upload();
-  if (upload.status == UPLOAD_FILE_START) {
-    if (!Update.begin(UPDATE_SIZE_UNKNOWN)) Update.printError(Serial);
-  } else if (upload.status == UPLOAD_FILE_WRITE) {
-    if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) Update.printError(Serial);
-  } else if (upload.status == UPLOAD_FILE_END) {
-    if (Update.end(true)) Serial.printf("[OTA] Fertig: %u Bytes\n", upload.totalSize);
-    else Update.printError(Serial);
-  }
 }
 
 void handleExport() {

@@ -7,10 +7,10 @@ void handleCancel() {
 // ── Zeit-Sync ──────────────────────────────────────────────
 void handleSetTime() {
   if (server.hasArg("ts")) {
-    double tsDouble  = server.arg("ts").toDouble();
-    timeOffsetMs     = (int64_t)tsDouble - (int64_t)millis();
-    timeIsSynced     = true;
-    lastSyncAt       = millis();
+    int64_t rxTs = (int64_t)atoll(server.arg("ts").c_str());
+    timeOffsetMs = rxTs - (int64_t)millis();
+    timeIsSynced = true;
+    lastSyncAt   = millis();
   }
   server.send(204, "text/plain", "");
 }
@@ -132,55 +132,8 @@ void handleRestart() {
 }
 
 void handleManualPing() {
-  int state = radio.transmit("POG");
-  if (state == RADIOLIB_ERR_NONE) { loraTxCount++; } else { loraTxFail++; }
+  loRaSend("PNG");
   server.send(200, "application/json", "{\"sent\":true}");
-}
-
-void handleOtaPage() {
-  String html = "<!DOCTYPE html><html><head><meta charset='utf-8'>"
-    "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-    "<title>OTA Update – SPLIT</title>"
-    "<style>body{font-family:Arial,sans-serif;background:#0a0a0a;color:#eee;padding:20px;max-width:420px}"
-    "h2{color:#f0a500}input[type=file]{width:100%;margin:10px 0;padding:6px}"
-    ".btn{display:inline-block;background:#1a3a1a;color:#4caf50;border:none;padding:10px 20px;"
-    "border-radius:8px;font-size:1em;cursor:pointer;text-decoration:none;margin-top:8px}"
-    ".warn{color:#ff9800;font-size:.85em;margin-top:6px}</style></head><body>"
-    "<h2>&#128640; Firmware-Update (SPLIT)</h2>"
-    "<p class='warn'>&#9888; Ger&auml;t startet nach dem Update automatisch neu.</p>"
-    "<form method='POST' action='/update' enctype='multipart/form-data'>"
-    "<label>Firmware-Datei (.bin):</label>"
-    "<input type='file' name='firmware' accept='.bin' required>"
-    "<br><button class='btn' type='submit'>&#11014; Hochladen &amp; Flashen</button>"
-    "</form>"
-    "<br><a href='/'>&#8592; Zur&uuml;ck</a></body></html>";
-  server.send(200, "text/html; charset=utf-8", html);
-}
-
-void handleOtaUpload() {
-  server.sendHeader("Connection", "close");
-  if (Update.hasError()) {
-    server.send(200, "text/html; charset=utf-8",
-      "<h2 style='color:#f44'>Update fehlgeschlagen!</h2><a href='/update'>Nochmal versuchen</a>");
-  } else {
-    server.send(200, "text/html; charset=utf-8",
-      "<h2 style='color:#4caf50'>Update erfolgreich!</h2><p>Ger&auml;t startet neu...</p>");
-  }
-  delay(500);
-  ESP.restart();
-}
-
-void handleOtaStream() {
-  HTTPUpload& upload = server.upload();
-  if (upload.status == UPLOAD_FILE_START) {
-    Serial.printf("[OTA] Start: %s\n", upload.filename.c_str());
-    if (!Update.begin(UPDATE_SIZE_UNKNOWN)) Update.printError(Serial);
-  } else if (upload.status == UPLOAD_FILE_WRITE) {
-    if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) Update.printError(Serial);
-  } else if (upload.status == UPLOAD_FILE_END) {
-    if (Update.end(true)) Serial.printf("[OTA] Fertig: %u Bytes\n", upload.totalSize);
-    else Update.printError(Serial);
-  }
 }
 
 void handleExport() {
@@ -210,7 +163,7 @@ void handleExport() {
 }
 
 void handleReset() {
-  bestTimeMs = 0; historyCnt = 0;
+  bestTimeMs = 0; historyCnt = 0; histHead = 0;
   memset(history,           0, sizeof(history));
   memset(historyNames,      0, sizeof(historyNames));
   memset(historyTimestamp,  0, sizeof(historyTimestamp));

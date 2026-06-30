@@ -1,6 +1,6 @@
 // ── Display: Seiten ───────────────────────────���────────────
 void drawPageHeader(const char* title) {
-  static const char* pInd[NUM_PAGES] = {"P1","P2","P3"};
+  static const char* pInd[NUM_PAGES] = {"P1","P2","P3","P4"};
   const char* pi = pInd[currentPage < NUM_PAGES ? currentPage : 0];
   char right[12];
   if (batVoltage > 2.0f)
@@ -98,11 +98,37 @@ void drawHistoryPage() {
   u8g2.sendBuffer();
 }
 
+void drawSyncPage() {
+  drawPageHeader("[SPLIT] UHRZEIT");
+  u8g2.setFont(u8g2_font_6x10_tf);
+  char buf[24];
+  if (!timeIsSynced) {
+    u8g2.drawStr(0, 26, "Nicht synchronisiert");
+    u8g2.drawStr(0, 37, "> Browser oeffnen");
+  } else {
+    int64_t ts = nowUnixMs() / 1000LL + TZ_OFFSET_SEC;
+    unsigned hh = (unsigned)((ts % 86400LL) / 3600LL);
+    unsigned mm = (unsigned)((ts % 3600LL) / 60LL);
+    unsigned ss2 = (unsigned)(ts % 60LL);
+    snprintf(buf, sizeof(buf), "%02u:%02u:%02u", hh, mm, ss2);
+    u8g2.drawStr(0, 24, buf);
+    unsigned long ago = (millis() - lastSyncAt) / 1000UL;
+    if (ago < 60)   snprintf(buf, sizeof(buf), "Sync: vor %lus", ago);
+    else            snprintf(buf, sizeof(buf), "Sync: vor %lum", ago / 60UL);
+    u8g2.drawStr(0, 36, buf);
+  }
+  char upBuf2[14]; fmtUptime(upBuf2);
+  snprintf(buf, sizeof(buf), "Up: %s", upBuf2);
+  u8g2.drawStr(0, 50, buf);
+  u8g2.sendBuffer();
+}
+
 void drawDisplay(unsigned long liveMs) {
   switch (currentPage) {
     case 0:  drawMainPage(liveMs); break;
     case 1:  drawSignalPage();     break;
     case 2:  drawHistoryPage();    break;
+    case 3:  drawSyncPage();       break;
     default: drawMainPage(liveMs); break;
   }
 }

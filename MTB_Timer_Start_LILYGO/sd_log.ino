@@ -42,14 +42,14 @@ static bool jsonGetU8(const char* src, const char* key, uint8_t* dst) {
 // ── Datums-String (für Dateinamen) ─────────────────────────
 static void dateStr(int64_t tsMs, char* out, uint8_t len) {
   if (tsMs <= 0) { strncpy(out, "00000000", len); return; }
-  time_t t = (time_t)(tsMs / 1000LL);
+  time_t t = (time_t)(tsMs / 1000LL) + TZ_OFFSET_SEC;
   struct tm* tm2 = gmtime(&t);
   snprintf(out, len, "%04d%02d%02d", tm2->tm_year + 1900, tm2->tm_mon + 1, tm2->tm_mday);
 }
 
 static void dateTimeStr(int64_t tsMs, char* out, uint8_t len) {
   if (tsMs <= 0) { strncpy(out, "", len); return; }
-  time_t t = (time_t)(tsMs / 1000LL);
+  time_t t = (time_t)(tsMs / 1000LL) + TZ_OFFSET_SEC;
   struct tm* tm2 = gmtime(&t);
   snprintf(out, len, "%02d.%02d.%04d %02d:%02d",
            tm2->tm_mday, tm2->tm_mon + 1, tm2->tm_year + 1900,
@@ -61,7 +61,7 @@ static void updateSessionFile() {
   if (!sdPresent || !timeIsSynced) { sessionFile[0] = '\0'; return; }
   char dateS[10]; dateStr(nowUnixMs(), dateS, sizeof(dateS));
   // Datum der Session prüfen → wenn neuer Tag, sessionnum zurücksetzen
-  uint32_t today = (uint32_t)(nowUnixMs() / 86400000LL);
+  uint32_t today = (uint32_t)((nowUnixMs() / 1000LL + TZ_OFFSET_SEC) / 86400LL);
   if (today != cfg_session_day) {
     cfg_session_day = today;
     cfg_session_num = 1;
@@ -229,7 +229,7 @@ static void sdInitSessionFile() {
 
 // ── SD-Init ────────────────────────────────────────────────
 void sdInit() {
-  SDSPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
+  // SDSPI bereits in setup() initialisiert
   sdPresent = SD.begin(SD_CS, SDSPI);
   if (!sdPresent) { DBG("SD", "Keine Karte"); return; }
   DBGF("SD", "Karte OK – %lu MB", (unsigned long)(SD.cardSize() / (1024UL * 1024UL)));

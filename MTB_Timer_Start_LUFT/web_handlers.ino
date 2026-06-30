@@ -4,19 +4,37 @@ void handleCancel() {
   server.send(303);
 }
 
-// ── Zeit-Sync ────────────────────────────────────────��─────
+// ── Zeit-Sync ──────────────────────────────────────────────
 void handleSetTime() {
   if (server.hasArg("ts")) {
     int64_t rxTs = (int64_t)atoll(server.arg("ts").c_str());
     timeOffsetMs = rxTs - (int64_t)millis();
     timeIsSynced = true;
     lastSyncAt   = millis();
-    // Zeitstempel an Finish/Split broadcasten
     char tsyBuf[28];
     snprintf(tsyBuf, sizeof(tsyBuf), "TSY:%lld", (long long)nowUnixMs());
     loRaSend(tsyBuf);
   }
   server.send(204, "text/plain", "");
+}
+
+// ── BMP280 Rekalibrierung ──────────────────────────────────
+void handleCalibrate() {
+  if (!bmpCalibrated) {
+    server.send(503, "application/json", "{\"ok\":false,\"error\":\"BMP280 nicht initialisiert\"}");
+    return;
+  }
+  float sum = 0.0f;
+  const int N = 20;
+  for (int i = 0; i < N; i++) {
+    sum += bmp.readPressure();
+    delay(150);
+  }
+  bmpBaseline = sum / (float)N;
+  plateFlag   = false;
+  char resp[64];
+  snprintf(resp, sizeof(resp), "{\"ok\":true,\"baseline\":%.0f}", bmpBaseline);
+  server.send(200, "application/json", resp);
 }
 
 // ── Duell-Handler ──────────────────────────────────────────
@@ -137,7 +155,7 @@ void handleDuelGo() {
   duelDone     = false;
   duelCurrent  = 0;
   duelCount    = duelSetupCount;
-  duelStartIdx = histHead;   // physischer Ringpuffer-Index des ersten Duell-Eintrags
+  duelStartIdx = histHead;
   server.sendHeader("Location", "/");
   server.send(303);
 }
@@ -288,7 +306,6 @@ void handleLapStart() {
     plateFlag     = false;
     appState      = LAP_IDLE;
     drawDisplay();
-    Serial.println("[Start] Runden-Modus aktiviert.");
   }
   server.sendHeader("Location", "/");
   server.send(303);
@@ -308,13 +325,10 @@ void handleLapStop() {
     resultAt = millis();
     currentPage = 0;
     drawDisplay();
-    char tbuf[12]; fmtTime(lapMs, tbuf);
-    Serial.print("[Start] LAP Stopp. Letzte Runde: "); Serial.println(tbuf);
   } else if (appState == LAP_IDLE) {
     lapMode  = false;
     appState = IDLE;
     drawDisplay();
-    Serial.println("[Start] Runden-Modus beendet.");
   }
   server.sendHeader("Location", "/");
   server.send(303);
@@ -335,33 +349,26 @@ void handleLapReset() {
   memset(historyTimestamp,  0, sizeof(historyTimestamp));
   appState = LAP_IDLE;
   drawDisplay();
-  Serial.println("[Start] LAP Reset – LAP_IDLE.");
   server.sendHeader("Location", "/");
   server.send(303);
 }
 
 // ── Settings: NVS lesen/schreiben (nur bei Änderung) ───────
-// Jeder NVS-Schreibzugriff verbraucht Flash-Lebenszyklen.
-// Wir lesen den gespeicherten Wert und schreiben nur wenn nötig.
 void saveSettings() {
-  prefs.begin("mtb-cfg", false);
-  // UInt-Werte: nur schreiben wenn geändert
-  if (prefs.getUInt("debounce",  500)     != cfg_debounce_ms)    prefs.putUInt("debounce",  cfg_debounce_ms);
-  if (prefs.getUInt("result",    8000)    != cfg_result_show_ms) prefs.putUInt("result",    cfg_result_show_ms);
-  if (prefs.getUInt("timeout",   300000)  != cfg_run_timeout_ms) prefs.putUInt("timeout",   cfg_run_timeout_ms);
-  if (prefs.getUInt("ping",      30000)   != cfg_ping_ms)        prefs.putUInt("ping",      cfg_ping_ms);
-  if (prefs.getUInt("loracomp",  0)       != cfg_lora_comp_ms)   prefs.putUInt("loracomp",  cfg_lora_comp_ms);
-  if (prefs.getUInt("batmah",    1100)    != cfg_bat_mah)        prefs.putUInt("batmah",    cfg_bat_mah);
-  // UChar-Werte
-  if (prefs.getUChar("contrast", 255)     != cfg_contrast)       prefs.putUChar("contrast", cfg_contrast);
-  if (prefs.getUChar("platepin", PLATE_PIN)!= cfg_plate_pin)     prefs.putUChar("platepin", cfg_plate_pin);
-  // Bool
-  if (prefs.getBool("platenc",   false)   != cfg_plate_nc)       prefs.putBool("platenc",   cfg_plate_nc);
-  if (prefs.getUChar("lorapwr",    14) != cfg_lora_pwr)       prefs.putUChar("lorapwr",    cfg_lora_pwr);
-  if (prefs.getUChar("stagoffset", 30) != cfg_stag_offset_s) prefs.putUChar("stagoffset", cfg_stag_offset_s);
-  if (prefs.getUChar("btn2pin", 255)     != cfg_btn2_pin)        prefs.putUChar("btn2pin",  cfg_btn2_pin);
-  if (prefs.getUInt("autopage",  0)      != cfg_page_auto_ms)    prefs.putUInt("autopage",  cfg_page_auto_ms);
-  // Strings: immer schreiben (Vergleich wäre aufwendiger als Schreiben)
+  prefs.begin("mtb-cfg-lu", false);
+  if (prefs.getUInt("debounce",  500)    != cfg_debounce_ms)           prefs.putUInt("debounce",  cfg_debounce_ms);
+  if (prefs.getUInt("result",    8000)   != cfg_result_show_ms)        prefs.putUInt("result",    cfg_result_show_ms);
+  if (prefs.getUInt("timeout",   300000) != cfg_run_timeout_ms)        prefs.putUInt("timeout",   cfg_run_timeout_ms);
+  if (prefs.getUInt("ping",      30000)  != cfg_ping_ms)               prefs.putUInt("ping",      cfg_ping_ms);
+  if (prefs.getUInt("loracomp",  0)      != cfg_lora_comp_ms)          prefs.putUInt("loracomp",  cfg_lora_comp_ms);
+  if (prefs.getUInt("batmah",    1100)   != cfg_bat_mah)               prefs.putUInt("batmah",    cfg_bat_mah);
+  if (prefs.getUInt("bmpthresh", 80)     != cfg_pressure_threshold_pa) prefs.putUInt("bmpthresh", cfg_pressure_threshold_pa);
+  if (prefs.getUInt("bmpcaldly", 3000)   != cfg_bmp_cal_delay_ms)      prefs.putUInt("bmpcaldly", cfg_bmp_cal_delay_ms);
+  if (prefs.getUChar("contrast", 255)    != cfg_contrast)              prefs.putUChar("contrast", cfg_contrast);
+  if (prefs.getUChar("lorapwr",  14)     != cfg_lora_pwr)              prefs.putUChar("lorapwr",  cfg_lora_pwr);
+  if (prefs.getUChar("stagoffset", 30)   != cfg_stag_offset_s)         prefs.putUChar("stagoffset", cfg_stag_offset_s);
+  if (prefs.getUChar("btn2pin",  255)    != cfg_btn2_pin)              prefs.putUChar("btn2pin",  cfg_btn2_pin);
+  if (prefs.getUInt("autopage",  0)      != cfg_page_auto_ms)          prefs.putUInt("autopage",  cfg_page_auto_ms);
   prefs.putString("apssid", cfg_ap_ssid);
   prefs.putString("appass", cfg_ap_pass);
   prefs.end();
@@ -391,21 +398,10 @@ void handleSettingsSave() {
     cfg_contrast = (uint8_t)server.arg("contrast").toInt();
     u8g2.setContrast(cfg_contrast);
   }
-  if (server.hasArg("platepin")) {
-    uint8_t np = (uint8_t)server.arg("platepin").toInt();
-    if (np != cfg_plate_pin) { cfg_plate_pin = np; needsRestart = true; }
-  }
-  if (server.hasArg("platenc") && !needsRestart) {
-    bool newNc = (server.arg("platenc") == "1");
-    if (newNc != cfg_plate_nc) {
-      cfg_plate_nc = newNc;
-      detachInterrupt(digitalPinToInterrupt(cfg_plate_pin));
-      attachInterrupt(digitalPinToInterrupt(cfg_plate_pin), onPlate,
-                      cfg_plate_nc ? RISING : FALLING);
-    }
-  } else if (server.hasArg("platenc")) {
-    cfg_plate_nc = (server.arg("platenc") == "1");
-  }
+  if (server.hasArg("bmpthresh"))
+    cfg_pressure_threshold_pa = (uint32_t)constrain(server.arg("bmpthresh").toInt(), 10, 5000);
+  if (server.hasArg("bmpcaldly"))
+    cfg_bmp_cal_delay_ms = (uint32_t)constrain(server.arg("bmpcaldly").toInt(), 1000, 10000);
   if (server.hasArg("btn2pin")) {
     uint8_t np = (uint8_t)constrain(server.arg("btn2pin").toInt(), 0, 255);
     if (np != cfg_btn2_pin) { cfg_btn2_pin = np; needsRestart = true; }
@@ -497,7 +493,7 @@ void handleExport() {
       csv += "DNF," + nm + ",0,DNF,\r\n";
     }
   }
-  server.sendHeader("Content-Disposition", "attachment; filename=\"start_history.csv\"");
+  server.sendHeader("Content-Disposition", "attachment; filename=\"start_luft_history.csv\"");
   server.send(200, "text/csv; charset=utf-8", csv);
 }
 

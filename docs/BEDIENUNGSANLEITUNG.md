@@ -239,18 +239,7 @@ Die Funkübertragung zwischen Start und Finish dauert eine kleine Zeit (RTT = Hi
 
 ---
 
-## 14. Firmware aktualisieren (OTA)
-
-Keine USB-Verbindung nötig — Update über WLAN.
-
-1. Neue `.bin`-Datei auf dem Smartphone speichern
-2. Browser → `http://192.168.4.1/update`
-3. **Firmware-Datei (.bin)** auswählen
-4. **Hochladen & Flashen** → Gerät startet automatisch neu (~30 Sekunden)
-
----
-
-## 15. Deep Sleep / Akkuschonen
+## 14. Deep Sleep / Akkuschonen
 
 - PRG-Taste **3 Sekunden halten** → Gerät schläft ein (< 1 mA Verbrauch)
 - PRG-Taste kurz drücken → Aufwachen, alle Einstellungen bleiben erhalten
@@ -258,7 +247,7 @@ Keine USB-Verbindung nötig — Update über WLAN.
 
 ---
 
-## 16. Fehlerbehebung
+## 15. Fehlerbehebung
 
 ### Keine Verbindung zwischen Nodes
 - Sind alle Nodes eingeschaltet?
@@ -292,7 +281,7 @@ Keine USB-Verbindung nötig — Update über WLAN.
 
 ---
 
-## 17. Technische Daten
+## 16. Technische Daten
 
 | Eigenschaft | Heltec V3 | LILYGO T3 V1.6.1 |
 |-------------|-----------|------------------|

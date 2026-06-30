@@ -438,15 +438,24 @@ String buildHTML() {
     "oninput=\"document.getElementById('cl').textContent=this.value\">"
     "<small class='hint'>OLED-Helligkeit (0&ndash;255)</small></div>"
     "</div>";
-  html += "<div class='shdr'>&#9000; Sensor</div>";
+  html += "<div class='shdr'>&#128168; Luftdruck-Sensor (BMP280)</div>";
   html += "<div class='sg'>"
-    "<div class='sr2'><div class='sl'><span class='slb'>GPIO Pin</span>"
-    "<input type='number' name='platepin' value='" + String(cfg_plate_pin) + "' min='0' max='39'></div>"
-    "<small class='hint'>Pin des Drucksensors (Neustart nach &Auml;nderung)</small></div>"
-    "<div class='sr2'><div class='sl'><span class='slb'>Sensor-Typ</span></div>"
-    "<div class='srow'>"
-    "<label><input type='radio' name='platenc' value='0'" + String(!cfg_plate_nc ? " checked" : "") + "> NO</label>"
-    "<label><input type='radio' name='platenc' value='1'" + String(cfg_plate_nc ? " checked" : "") + "> NC</label></div></div>"
+    "<div class='sr2'><div class='sl'><span class='slb'>Druckschwelle (Pa)</span>"
+    "<input type='number' name='bmpthresh' value='" + String(cfg_pressure_threshold_pa) + "' min='10' max='5000' inputmode='numeric'></div>"
+    "<small class='hint'>Drucksprung ab dem ein Trigger ausgel&ouml;st wird &bull; Standard: 80 Pa</small></div>"
+    "<div class='sr2'><div class='sl'><span class='slb'>Kalibrierungszeit (ms)</span>"
+    "<input type='number' name='bmpcaldly' value='" + String(cfg_bmp_cal_delay_ms) + "' min='1000' max='10000' inputmode='numeric'></div>"
+    "<small class='hint'>Wartezeit nach Einschalten vor Kalibrierung &bull; Standard: 3000 ms</small></div>"
+    "<div class='sr2'>"
+    "<div style='display:flex;align-items:center;justify-content:space-between'>"
+    "<div><span class='slb'>Basisdruck</span>"
+    "<div style='color:#aaa;font-size:.9em'>" + String((uint32_t)bmpBaseline) + " Pa " +
+    (bmpCalibrated ? "<span style='color:#4cd964'>&#10003; OK</span>" : "<span style='color:#ff3b30'>&#10007; Fehler</span>") +
+    "</div></div>"
+    "<button type='button' onclick=\"fetch('/calibrate').then(r=>r.json()).then(d=>{if(d.ok)alert('Kalibriert: '+d.baseline+' Pa');else alert('Fehler!')})\" "
+    "style='background:#1c1c1e;color:#f0a500;border:1px solid #333;border-radius:8px;padding:8px 14px;font-size:.85em;cursor:pointer'>"
+    "&#8635; Neu kalibrieren</button></div>"
+    "<small class='hint'>Schlauch nicht bet&auml;tigen w&auml;hrend der Kalibrierung</small></div>"
     "</div>";
   html += "<div class='shdr'>&#128065; Display</div>";
   html += "<div class='sg'>"

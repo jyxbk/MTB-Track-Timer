@@ -4,7 +4,6 @@ void handleCancel() {
   server.send(303);
 }
 
-// ── Zeit-Sync ──────────────────────────────────────────────
 void handleSetTime() {
   if (server.hasArg("ts")) {
     int64_t rxTs = (int64_t)atoll(server.arg("ts").c_str());
@@ -15,41 +14,74 @@ void handleSetTime() {
   server.send(204, "text/plain", "");
 }
 
+// ── BMP280 Rekalibrierung ──────────────────────────────────
+void handleCalibrate() {
+  if (!bmpCalibrated) {
+    server.send(503, "application/json", "{\"ok\":false,\"error\":\"BMP280 nicht initialisiert\"}");
+    return;
+  }
+  float sum = 0.0f;
+  const int N = 20;
+  for (int i = 0; i < N; i++) {
+    sum += bmp.readPressure();
+    delay(150);
+  }
+  bmpBaseline = sum / (float)N;
+  plateFlag   = false;
+  char resp[64];
+  snprintf(resp, sizeof(resp), "{\"ok\":true,\"baseline\":%.0f}", bmpBaseline);
+  server.send(200, "application/json", resp);
+}
+
 // ── Settings: NVS lesen/schreiben ──────────────────────────
 void saveSettings() {
-  prefs.begin("mtb-cfg2", false);
-  prefs.putUInt("debounce",   cfg_debounce_ms);
-  prefs.putUInt("result",     cfg_result_show_ms);
-  prefs.putUInt("timeout",    cfg_run_timeout_ms);
-  prefs.putUInt("loracomp",   cfg_lora_comp_ms);
-  prefs.putUInt("retryiv",    cfg_retry_interval);
-  prefs.putUInt("batmah",     cfg_bat_mah);
-  prefs.putUChar("maxretry",  cfg_max_retries);
-  prefs.putUChar("contrast",  cfg_contrast);
-  prefs.putUChar("platepin",  cfg_plate_pin);
-  prefs.putBool("platenc",    cfg_plate_nc);
-  if (prefs.getUChar("lorapwr", 14) != cfg_lora_pwr) prefs.putUChar("lorapwr", cfg_lora_pwr);
-  if (prefs.getUChar("btn2pin", 255) != cfg_btn2_pin) prefs.putUChar("btn2pin", cfg_btn2_pin);
-  if (prefs.getUInt("autopage",   0) != cfg_page_auto_ms) prefs.putUInt("autopage", cfg_page_auto_ms);
-  prefs.putString("apssid",   cfg_ap_ssid);
-  prefs.putString("appass",   cfg_ap_pass);
+  prefs.begin("mtb-cfg2-lu", false);
+  if (prefs.getUInt("debounce",  500)    != cfg_debounce_ms)           prefs.putUInt("debounce",   cfg_debounce_ms);
+  if (prefs.getUInt("result",    8000)   != cfg_result_show_ms)        prefs.putUInt("result",     cfg_result_show_ms);
+  if (prefs.getUInt("timeout",   300000) != cfg_run_timeout_ms)        prefs.putUInt("timeout",    cfg_run_timeout_ms);
+  if (prefs.getUInt("loracomp",  0)      != cfg_lora_comp_ms)          prefs.putUInt("loracomp",   cfg_lora_comp_ms);
+  if (prefs.getUInt("retryiv",   2000)   != cfg_retry_interval)        prefs.putUInt("retryiv",    cfg_retry_interval);
+  if (prefs.getUInt("batmah",    1100)   != cfg_bat_mah)               prefs.putUInt("batmah",     cfg_bat_mah);
+  if (prefs.getUInt("bmpthresh", 80)     != cfg_pressure_threshold_pa) prefs.putUInt("bmpthresh",  cfg_pressure_threshold_pa);
+  if (prefs.getUInt("bmpcaldly", 3000)   != cfg_bmp_cal_delay_ms)      prefs.putUInt("bmpcaldly",  cfg_bmp_cal_delay_ms);
+  if (prefs.getUChar("maxretry", 3)      != cfg_max_retries)           prefs.putUChar("maxretry",  cfg_max_retries);
+  if (prefs.getUChar("contrast", 255)    != cfg_contrast)              prefs.putUChar("contrast",  cfg_contrast);
+  if (prefs.getUChar("lorapwr",  14)     != cfg_lora_pwr)              prefs.putUChar("lorapwr",   cfg_lora_pwr);
+  if (prefs.getUChar("btn2pin",  255)    != cfg_btn2_pin)              prefs.putUChar("btn2pin",   cfg_btn2_pin);
+  if (prefs.getUInt("autopage",  0)      != cfg_page_auto_ms)          prefs.putUInt("autopage",   cfg_page_auto_ms);
+  prefs.putString("apssid", cfg_ap_ssid);
+  prefs.putString("appass", cfg_ap_pass);
   prefs.end();
 }
 
 void handleSettingsSave() {
   bool needsRestart = false;
   if (server.hasArg("debounce"))
-    cfg_debounce_ms = (uint32_t)server.arg("debounce").toInt();
+    cfg_debounce_ms = (uint32_t)constrain(server.arg("debounce").toInt(), 50, 2000);
   if (server.hasArg("result"))
-    cfg_result_show_ms = (uint32_t)server.arg("result").toInt();
+    cfg_result_show_ms = (uint32_t)constrain(server.arg("result").toInt(), 2000, 30000);
   if (server.hasArg("timeout"))
-    cfg_run_timeout_ms = (uint32_t)(server.arg("timeout").toInt() * 60000);
+    cfg_run_timeout_ms = (uint32_t)(constrain(server.arg("timeout").toInt(), 1, 30) * 60000);
   if (server.hasArg("loracomp"))
-    cfg_lora_comp_ms = (uint32_t)server.arg("loracomp").toInt();
+    cfg_lora_comp_ms = (uint32_t)constrain(server.arg("loracomp").toInt(), 0, 500);
   if (server.hasArg("lorapwr")) {
     cfg_lora_pwr = (uint8_t)constrain(server.arg("lorapwr").toInt(), 2, 20);
     radio.setOutputPower(cfg_lora_pwr);
   }
+  if (server.hasArg("retryiv"))
+    cfg_retry_interval = (uint32_t)constrain(server.arg("retryiv").toInt(), 500, 10000);
+  if (server.hasArg("maxretry"))
+    cfg_max_retries = (uint8_t)constrain(server.arg("maxretry").toInt(), 0, 10);
+  if (server.hasArg("batmah"))
+    cfg_bat_mah = (uint32_t)constrain(server.arg("batmah").toInt(), 100, 10000);
+  if (server.hasArg("contrast")) {
+    cfg_contrast = (uint8_t)server.arg("contrast").toInt();
+    u8g2.setContrast(cfg_contrast);
+  }
+  if (server.hasArg("bmpthresh"))
+    cfg_pressure_threshold_pa = (uint32_t)constrain(server.arg("bmpthresh").toInt(), 10, 5000);
+  if (server.hasArg("bmpcaldly"))
+    cfg_bmp_cal_delay_ms = (uint32_t)constrain(server.arg("bmpcaldly").toInt(), 1000, 10000);
   if (server.hasArg("btn2pin")) {
     uint8_t np = (uint8_t)constrain(server.arg("btn2pin").toInt(), 0, 255);
     if (np != cfg_btn2_pin) { cfg_btn2_pin = np; needsRestart = true; }
@@ -57,29 +89,6 @@ void handleSettingsSave() {
   if (server.hasArg("autopage")) {
     int secs = server.arg("autopage").toInt();
     cfg_page_auto_ms = (secs > 0) ? (uint32_t)constrain(secs, 2, 60) * 1000UL : 0;
-  }
-  if (server.hasArg("retryiv"))
-    cfg_retry_interval = (uint32_t)server.arg("retryiv").toInt();
-  if (server.hasArg("maxretry"))
-    cfg_max_retries = (uint8_t)server.arg("maxretry").toInt();
-  if (server.hasArg("batmah"))
-    cfg_bat_mah = (uint32_t)server.arg("batmah").toInt();
-  if (server.hasArg("contrast")) {
-    cfg_contrast = (uint8_t)server.arg("contrast").toInt();
-    u8g2.setContrast(cfg_contrast);
-  }
-  if (server.hasArg("platepin")) {
-    uint8_t np = (uint8_t)server.arg("platepin").toInt();
-    if (np != cfg_plate_pin) { cfg_plate_pin = np; needsRestart = true; }
-  }
-  if (server.hasArg("platenc")) {
-    bool newNc = (server.arg("platenc") == "1");
-    if (newNc != cfg_plate_nc) {
-      cfg_plate_nc = newNc;
-      detachInterrupt(digitalPinToInterrupt(cfg_plate_pin));
-      attachInterrupt(digitalPinToInterrupt(cfg_plate_pin), onPlateTrigger,
-                      cfg_plate_nc ? RISING : FALLING);
-    }
   }
   if (server.hasArg("apssid")) {
     String s = server.arg("apssid"); s.trim();
@@ -90,7 +99,7 @@ void handleSettingsSave() {
   }
   if (server.hasArg("appass")) {
     String pass = server.arg("appass");
-    if (pass.length() == 0 || pass.length() >= 8) {
+    if ((pass.length() == 0 || pass.length() >= 8) && pass != String(cfg_ap_pass)) {
       pass.toCharArray(cfg_ap_pass, sizeof(cfg_ap_pass));
       needsRestart = true;
     }
@@ -135,8 +144,7 @@ void handleManualPing() {
 }
 
 void handleExport() {
-  uint8_t sortIdx[MAX_HISTORY];
-  uint8_t validCnt = 0;
+  uint8_t sortIdx[MAX_HISTORY]; uint8_t validCnt = 0;
   for (uint8_t i = 0; i < historyCnt; i++) { if (history[i] > 0) sortIdx[validCnt++] = i; }
   for (uint8_t i = 1; i < validCnt; i++) {
     uint8_t key = sortIdx[i]; int8_t j = i - 1;
@@ -157,13 +165,7 @@ void handleExport() {
     }
     csv += String(rank + 1) + "," + nm + "," + String(history[i]) + "," + String(tbuf) + "," + String(dateBuf) + "\r\n";
   }
-  for (uint8_t i = 0; i < historyCnt; i++) {
-    if (history[i] == 0) {
-      String nm = String(historyNames[i]); nm.replace(",", ";"); nm.replace("\r", ""); nm.replace("\n", " ");
-      csv += "DNF," + nm + ",0,DNF,\r\n";
-    }
-  }
-  server.sendHeader("Content-Disposition", "attachment; filename=\"ziel_history.csv\"");
+  server.sendHeader("Content-Disposition", "attachment; filename=\"ziel_luft_history.csv\"");
   server.send(200, "text/csv; charset=utf-8", csv);
 }
 

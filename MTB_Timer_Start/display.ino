@@ -35,7 +35,9 @@ void drawMainPage(unsigned long liveMs) {
   else if (appState == RUNNING)                   strcpy(midBuf, " LAEUFT!");
   else if (appState == LAP_IDLE)                  strcpy(midBuf, "LAP-MODUS");
   else if (appState == LAP_RUNNING) { if (liveMs > 0) fmtTime(liveMs, midBuf); else strcpy(midBuf, " LAEUFT!"); }
-  else if (duelMode && duelCurrent < duelCount) {
+  else if (stagMode) {
+    snprintf(midBuf, sizeof(midBuf), "VERS %u/%u", stagStarted, stagCount);
+  } else if (duelMode && duelCurrent < duelCount) {
     char ns[9]; strncpy(ns, duelRiders[duelCurrent], 8); ns[8] = '\0';
     snprintf(midBuf, sizeof(midBuf), "%d/%d:%s", duelCurrent + 1, duelCount, ns);
   } else {
@@ -49,7 +51,34 @@ void drawMainPage(unsigned long liveMs) {
   u8g2.drawHLine(0, 31, 128);
 
   u8g2.setFont(u8g2_font_6x10_tf);
-  if (appState == LAP_IDLE) {
+  if (stagMode) {
+    if (stagStarted < stagCount) {
+      if (stagStarted == 0) {
+        char nb[22]; snprintf(nb, sizeof(nb), "1: %.16s", stagRiders[0]);
+        u8g2.drawStr(0, 43, nb);
+        u8g2.drawStr(0, 57, "Sensor starten");
+      } else {
+        unsigned long elapsed = millis() - stagLastStartMs;
+        unsigned long off_ms  = (unsigned long)cfg_stag_offset_s * 1000UL;
+        if (elapsed < off_ms) {
+          unsigned long rem = off_ms - elapsed;
+          char cd[12]; snprintf(cd, sizeof(cd), "Nxt: %02lu:%02lu", rem/60000, (rem%60000)/1000);
+          u8g2.drawStr(0, 43, cd);
+          char nb[22]; snprintf(nb, sizeof(nb), "%.20s", stagRiders[stagStarted]);
+          u8g2.drawStr(0, 57, nb);
+        } else {
+          u8g2.drawStr(0, 43, "BEREIT! Sensor...");
+          char nb[22]; snprintf(nb, sizeof(nb), "%.20s", stagRiders[stagStarted]);
+          u8g2.drawStr(0, 57, nb);
+        }
+      }
+    } else {
+      char fb[24]; snprintf(fb, sizeof(fb), "Ziel: %u/%u", stagFinished, stagCount);
+      u8g2.drawStr(0, 43, fb);
+      u8g2.drawStr(0, 57, "Warte auf TIM...");
+    }
+    u8g2.sendBuffer(); return;
+  } else if (appState == LAP_IDLE) {
     u8g2.drawStr(0, 43, "Warte auf Sensor");
     u8g2.drawStr(0, 57, "Web: Stopp/Reset");
   } else if (appState == LAP_RUNNING) {
@@ -168,11 +197,11 @@ void drawSyncPage() {
     u8g2.drawStr(0, 26, "Nicht synchronisiert");
     u8g2.drawStr(0, 37, "> Browser oeffnen");
   } else {
-    int64_t ts = nowUnixMs() / 1000LL;
+    int64_t ts = nowUnixMs() / 1000LL + TZ_OFFSET_SEC;
     unsigned hh = (unsigned)((ts % 86400LL) / 3600LL);
     unsigned mm = (unsigned)((ts % 3600LL) / 60LL);
     unsigned ss2 = (unsigned)(ts % 60LL);
-    snprintf(buf, sizeof(buf), "%02u:%02u:%02u UTC", hh, mm, ss2);
+    snprintf(buf, sizeof(buf), "%02u:%02u:%02u", hh, mm, ss2);
     u8g2.drawStr(0, 24, buf);
     unsigned long ago = (millis() - lastSyncAt) / 1000UL;
     if (ago < 60)   snprintf(buf, sizeof(buf), "Sync: vor %lus", ago);
