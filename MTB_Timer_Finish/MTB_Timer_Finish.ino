@@ -445,7 +445,7 @@ void setup() {
   server.on("/restart",       handleRestart);
   server.begin();
 
-  DBG("BOOT",  "FINISH-NODE v11 bereit");
+  DBG("BOOT",  "FINISH-NODE v20 bereit");
   DBGF("WIFI",  "SSID: %s  IP: %s", cfg_ap_ssid, WiFi.softAPIP().toString().c_str());
   DBGF("CFG",   "Entprell=%ums  Timeout=%ums  Comp=%ums  Retry=%ums/#%u",
        cfg_debounce_ms, cfg_run_timeout_ms, cfg_lora_comp_ms,

@@ -521,7 +521,7 @@ void setupBtn2() {
 void setup() {
   Serial.begin(115200);
   delay(200);
-  DBG("BOOT", "START-NODE LILYGO v13 startet...");
+  DBG("BOOT", "START-NODE LILYGO v24 startet...");
 
   prefs.begin("mtb-cfg-l", true);
   cfg_debounce_ms    = prefs.getUInt("debounce",   500);
@@ -657,7 +657,7 @@ void setup() {
   server.on("/bestlist",      handleBestlist);
   server.begin();
 
-  DBG("BOOT",  "START-NODE LILYGO v13 bereit");
+  DBG("BOOT",  "START-NODE LILYGO v24 bereit");
   DBGF("WIFI",  "SSID: %s  IP: %s", cfg_ap_ssid, WiFi.softAPIP().toString().c_str());
   DBGF("CFG",   "Plate=GPIO%u  Btn2=GPIO%u  AutoPage=%lums",
        cfg_plate_pin,

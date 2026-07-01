@@ -408,7 +408,7 @@ void setup() {
   server.on("/sdformat",      handleSdFormat);
   server.begin();
 
-  DBG("BOOT",  "FINISH-NODE LILYGO v11 bereit");
+  DBG("BOOT",  "FINISH-NODE LILYGO v20 bereit");
   DBGF("WIFI",  "SSID: %s  IP: %s", cfg_ap_ssid, WiFi.softAPIP().toString().c_str());
   DBGF("CFG",   "Entprell=%ums  Timeout=%ums  Comp=%ums  Retry=%ums/#%u",
        cfg_debounce_ms, cfg_run_timeout_ms, cfg_lora_comp_ms, cfg_retry_interval, cfg_max_retries);

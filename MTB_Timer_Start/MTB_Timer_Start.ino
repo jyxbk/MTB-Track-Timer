@@ -553,7 +553,7 @@ void setup() {
   server.on("/ping",          handleManualPing);
   server.begin();
 
-  DBG("BOOT",  "START-NODE v11 bereit");
+  DBG("BOOT",  "START-NODE v21 bereit");
   DBGF("WIFI",  "SSID: %s  IP: %s", cfg_ap_ssid, WiFi.softAPIP().toString().c_str());
   DBGF("CFG",   "Entprell=%ums  Timeout=%ums  Comp=%ums  Ping=%ums",
        cfg_debounce_ms, cfg_run_timeout_ms, cfg_lora_comp_ms, cfg_ping_ms);

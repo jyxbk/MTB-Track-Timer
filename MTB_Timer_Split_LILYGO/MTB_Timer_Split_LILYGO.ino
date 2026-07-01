@@ -332,7 +332,7 @@ void setup() {
   server.on("/sdformat",handleSdFormat);
   server.begin();
 
-  DBG("BOOT",  "SPLIT-NODE LILYGO v11 bereit");
+  DBG("BOOT",  "SPLIT-NODE LILYGO v21 bereit");
   DBGF("WIFI",  "SSID: %s  IP: %s", cfg_ap_ssid, WiFi.softAPIP().toString().c_str());
   DBGF("SD",    "%s", sdPresent?"vorhanden":"nicht eingelegt");
 
