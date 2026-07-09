@@ -1,114 +1,114 @@
-# MTB Track Timer – Elektronische Zeitmessung
+# MTB Track Timer – Electronic Lap Timing System
 
-**Drahtlose Zeitmessung für MTB Downhill / Zeitfahren** mit bis zu drei Nodes über LoRa 868 MHz.
-Kein Internet, kein Mobilfunk – funktioniert komplett offline über einen lokalen WLAN-Hotspot.
+**Wireless timing for MTB Downhill / time trials** with up to three nodes over LoRa 868 MHz.  
+No internet, no mobile network — works completely offline via a local Wi-Fi hotspot.
 
 ![Version](https://img.shields.io/badge/Version-v11-blue)
 ![Hardware](https://img.shields.io/badge/Hardware-Heltec%20%7C%20LILYGO-green)
 ![LoRa](https://img.shields.io/badge/LoRa-868%20MHz-orange)
-![Trigger](https://img.shields.io/badge/Trigger-Druckplatte%20%7C%20Luftdruck-purple)
+![Trigger](https://img.shields.io/badge/Trigger-Pressure%20Plate%20%7C%20Air%20Pressure-purple)
 ![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
 ---
 
-## Übersicht
+## Overview
 
-| Node | Funktion |
+| Node | Function |
 |------|----------|
-| **Start** | Startzeitpunkt, Ergebnisanzeige, Web-UI, SD-Logging |
-| **Finish** | Zielzeitpunkt → sendet Zeit per LoRa an Start |
-| **Split** | Zwischenzeit → sendet Zeit per LoRa an Start |
+| **Start** | Records start time, displays results, hosts Web UI, SD logging |
+| **Finish** | Records finish time → sends via LoRa to Start |
+| **Split** | Records intermediate time → sends via LoRa to Start |
 
-Die Nodes kommunizieren per **LoRa (868 MHz, SF7, BW 125 kHz)** – Reichweite bis ~1 km Sichtlinie.  
-Bedienung über den Browser am Smartphone via WLAN-Hotspot (`http://192.168.4.1`).
+Nodes communicate via **LoRa (868 MHz, SF7, BW 125 kHz)** — range up to ~1 km line-of-sight.  
+Operated via browser on a smartphone over the Wi-Fi hotspot (`http://192.168.4.1`).
 
 ---
 
-## Unterstützte Hardware
+## Supported Hardware
 
-| Board | Chip | LoRa | SD | Flash-Tool | LUFT-fähig |
-|-------|------|------|----|-----------|:----------:|
+| Board | Chip | LoRa | SD | Flash Tool | AIR-capable |
+|-------|------|------|----|-----------|:-----------:|
 | **Heltec WiFi LoRa 32 V3** | ESP32-S3 | SX1262 | – | PlatformIO | ✓ |
 | **LILYGO TTGO T3 V1.6.1** | ESP32-PICO-D4 | SX1276 | ✓ MicroSD | Arduino IDE | – |
 
-Beide Varianten sind **LoRa-kompatibel** und können gemischt eingesetzt werden.  
-Die LUFT-Variante (`_LUFT`) ist aktuell nur für **Heltec** verfügbar und benötigt zusätzlich einen **BMP280-Sensor** (I²C, 3,3 V).
+Both variants are **LoRa-compatible** and can be mixed.  
+The AIR variant (`_LUFT`) is currently only available for **Heltec** and requires an additional **BMP280 sensor** (I²C, 3.3 V).
 
 ---
 
-## Trigger-Varianten
+## Trigger Variants
 
-| Variante | Trigger | Ordner-Suffix | Beschreibung |
-|----------|---------|---------------|--------------|
-| **Standard** | GPIO-Druckplatte | *(kein Suffix)* | Physische Kontaktplatte, ISR-basiert |
-| **LUFT** | BMP280 Luftdrucksensor | `_LUFT` | Pneumatischer Gummischlauch, kein Kontakt nötig |
+| Variant | Trigger | Folder suffix | Description |
+|---------|---------|---------------|-------------|
+| **Standard** | GPIO pressure plate | *(no suffix)* | Physical contact plate, ISR-based |
+| **AIR** | BMP280 air pressure sensor | `_LUFT` | Pneumatic rubber hose, no contact needed |
 
-Die LUFT-Variante nutzt einen verschlossenen Gummischlauch mit BMP280-Drucksensor (I²C). Wenn ein Reifen den Schlauch überfährt, erkennt der Sensor den Drucksprung (~50–500 Pa) und löst den Timer aus — wie ein klassischer pneumatischer Straßenzähler. Kein Verschleiß, kein Kabelbruch.
+The AIR variant uses a sealed rubber hose with a BMP280 pressure sensor (I²C). When a tyre rolls over the hose, the sensor detects the pressure spike (~50–500 Pa) and triggers the timer — just like a classic pneumatic road counter. No wear, no broken wires.
 
 ---
 
-## Projektstruktur
+## Project Structure
 
 ```
 MTB-Track-Timer/
-├── MTB_Timer_Start/            # Start-Node        (Heltec, Druckplatte)
-├── MTB_Timer_Start_LILYGO/     # Start-Node        (LILYGO, Druckplatte)
-├── MTB_Timer_Start_LUFT/       # Start-Node        (Heltec, Luftdruck BMP280)
-├── MTB_Timer_Finish/           # Finish-Node       (Heltec, Druckplatte)
-├── MTB_Timer_Finish_LILYGO/    # Finish-Node       (LILYGO, Druckplatte)
-├── MTB_Timer_Finish_LUFT/      # Finish-Node       (Heltec, Luftdruck BMP280)
-├── MTB_Timer_Split/            # Split-Node        (Heltec, Druckplatte)
-├── MTB_Timer_Split_LILYGO/     # Split-Node        (LILYGO, Druckplatte)
-├── MTB_Timer_Split_LUFT/       # Split-Node        (Heltec, Luftdruck BMP280)
-├── KONZEPT_LUFT/               # Konzept & Planung LUFT-Variante
+├── MTB_Timer_Start/            # Start node        (Heltec, pressure plate)
+├── MTB_Timer_Start_LILYGO/     # Start node        (LILYGO, pressure plate)
+├── MTB_Timer_Start_LUFT/       # Start node        (Heltec, air pressure BMP280)
+├── MTB_Timer_Finish/           # Finish node       (Heltec, pressure plate)
+├── MTB_Timer_Finish_LILYGO/    # Finish node       (LILYGO, pressure plate)
+├── MTB_Timer_Finish_LUFT/      # Finish node       (Heltec, air pressure BMP280)
+├── MTB_Timer_Split/            # Split node        (Heltec, pressure plate)
+├── MTB_Timer_Split_LILYGO/     # Split node        (LILYGO, pressure plate)
+├── MTB_Timer_Split_LUFT/       # Split node        (Heltec, air pressure BMP280)
+├── KONZEPT_LUFT/               # AIR variant concept & planning
 ├── docs/
-│   ├── BEDIENUNGSANLEITUNG.md  # Vollständige Bedienungsanleitung
-│   └── MTB_Timer_Preview.html  # Web-UI Vorschau (offline öffnen)
-└── platformio.ini              # Root-Platzhalter (Unterordner flashen!)
+│   ├── BEDIENUNGSANLEITUNG.md  # Full user manual
+│   └── MTB_Timer_Preview.html  # Web UI preview (open offline)
+└── platformio.ini              # Root placeholder (flash from subfolders!)
 ```
 
-Jeder Node-Ordner enthält:
+Each node folder contains:
 
-| Datei | Inhalt |
-|-------|--------|
-| `*.ino` (Haupt) | Includes, Globals, ISRs, `setup()`, `loop()` |
-| `display.ino` | OLED-Zeichenfunktionen |
-| `web_html.ino` | HTML-Seite + `/state` JSON |
-| `web_handlers.ino` | Alle HTTP-Handler |
-| `sd_log.ino` | SD-Karte, Strecken, Sessions *(LILYGO only)* |
+| File | Content |
+|------|---------|
+| `*.ino` (main) | Includes, globals, ISRs, `setup()`, `loop()` |
+| `display.ino` | OLED drawing functions |
+| `web_html.ino` | HTML page + `/state` JSON |
+| `web_handlers.ino` | All HTTP handlers |
+| `sd_log.ino` | SD card, tracks, sessions *(LILYGO only)* |
 
 ---
 
 ## Features
 
-- **Präzise Zeitmessung** – µs-genaue ISR-Timestamps, LoRa-Kompensation konfigurierbar
-- **Web-UI** – Apple-Style, Dark/Light-Mode, läuft komplett im Browser ohne App
-- **Duell-Modus** – bis zu 10 Fahrer, automatische Rangliste
-- **Runden-Modus** – beliebig viele Runden, Bestzeit-Tracking
-- **Zwischenzeit (Split)** – optionaler dritter Node
-- **SD-Logging** *(LILYGO)* – Strecken, Fahrer, Sessions, Bestenliste, Export als CSV
-- **OTA-Update** – Firmware-Update direkt über den Browser, kein USB nötig
-- **Akkubetrieb** – Deep Sleep (<1 mA), Laufzeit ~10–14 h mit 18650
-- **LoRa-Diagnose** – RTT-Messung, Signalstärke, automatische Kompensationsempfehlung
+- **Precise timing** – µs-accurate ISR timestamps, configurable LoRa compensation
+- **Web UI** – Apple-style, dark/light mode, runs entirely in the browser without an app
+- **Duel mode** – up to 10 riders, automatic leaderboard
+- **Lap mode** – unlimited laps, best-time tracking
+- **Split time** – optional third node
+- **SD logging** *(LILYGO)* – tracks, riders, sessions, leaderboard, CSV export
+- **OTA update** – firmware update directly via browser, no USB required
+- **Battery powered** – deep sleep (<1 mA), ~10–14 h runtime with 18650
+- **LoRa diagnostics** – RTT measurement, signal strength, automatic compensation recommendation
 
 ---
 
-## Schnellstart
+## Quick Start
 
 ### Heltec (PlatformIO)
 
 ```bash
-# Unterordner als Projekt öffnen, z.B. Start-Node:
+# Open subfolder as project, e.g. Start node:
 code MTB_Timer_Start
 
-# Flashen
+# Flash
 pio run -t upload
 
-# Serieller Monitor
+# Serial monitor
 pio device monitor --baud 115200
 
-# OTA-Update (nach erstem Flash)
-# Browser → http://192.168.4.1/update → .bin auswählen
+# OTA update (after first flash)
+# Browser → http://192.168.4.1/update → select .bin
 ```
 
 ### LILYGO (Arduino IDE)
@@ -116,26 +116,26 @@ pio device monitor --baud 115200
 ```
 Board:         TTGO LoRa32-OLED
 Upload Speed:  115200
-Port:          COMxx  (CH9102-Treiber erforderlich)
+Port:          COMxx  (CH9102 driver required)
 ```
 
-> **Manueller Download-Modus** falls Auto-Reset fehlschlägt:  
-> BOOT halten → RST kurz drücken → BOOT loslassen → Upload starten
+> **Manual download mode** if auto-reset fails:  
+> Hold BOOT → press RST briefly → release BOOT → start upload
 
-### Erste Schritte nach dem Flash
+### First Steps After Flashing
 
-1. Gerät einschalten → OLED zeigt WLAN-Name
-2. Am Smartphone mit dem WLAN verbinden (z.B. `MTB-Time-START`)
+1. Power on device → OLED shows Wi-Fi name
+2. Connect smartphone to the Wi-Fi (e.g. `MTB-Time-START`)
 3. Browser: `http://192.168.4.1`
-4. Tab **LoRa** → **Uhrzeit synchronisieren**
-5. Los geht's 🏔️
+4. Tab **LoRa** → **Sync time**
+5. Ready to ride 🏔️
 
 ---
 
-## Benötigte Bibliotheken
+## Required Libraries
 
-| Bibliothek | Version | Heltec | LILYGO |
-|------------|---------|:------:|:------:|
+| Library | Version | Heltec | LILYGO |
+|---------|---------|:------:|:------:|
 | RadioLib | ≥ 6.6.0 | ✓ | ✓ |
 | U8g2 | ≥ 2.35.19 | ✓ | ✓ |
 | SD | (Core) | – | ✓ |
@@ -143,53 +143,53 @@ Port:          COMxx  (CH9102-Treiber erforderlich)
 
 ---
 
-## LoRa-Konfiguration
+## LoRa Configuration
 
-| Parameter | Wert |
-|-----------|------|
-| Frequenz | 868.0 MHz |
-| Bandbreite | 125 kHz |
+| Parameter | Value |
+|-----------|-------|
+| Frequency | 868.0 MHz |
+| Bandwidth | 125 kHz |
 | Spreading Factor | SF7 |
 | Coding Rate | 4/5 |
-| Sync Word | 0x12 (privat) |
-| TX-Leistung | 14 dBm (konfigurierbar 2–20 dBm) |
+| Sync Word | 0x12 (private) |
+| TX Power | 14 dBm (configurable 2–20 dBm) |
 
 ---
 
-## Nachrichtenprotokoll
+## Message Protocol
 
-| Nachricht | Von → Nach | Bedeutung |
-|-----------|------------|-----------|
-| `STX` / `STX:<name>` | Start → Finish/Split | Lauf gestartet |
-| `TIM:<µs>` | Finish → Start | Zielzeit in Mikrosekunden |
-| `SPL:<µs>` | Split → Start | Zwischenzeit in Mikrosekunden |
-| `ACK` | Start → Finish/Split | Bestätigung |
-| `CAN` | Start → Finish/Split | Lauf abgebrochen |
+| Message | From → To | Meaning |
+|---------|-----------|---------|
+| `STX` / `STX:<name>` | Start → Finish/Split | Run started |
+| `TIM:<µs>` | Finish → Start | Finish time in microseconds |
+| `SPL:<µs>` | Split → Start | Intermediate time in microseconds |
+| `ACK` | Start → Finish/Split | Acknowledgement |
+| `CAN` | Start → Finish/Split | Run cancelled |
 | `PNG` / `POG` | Start ↔ Finish/Split | Ping / Pong (RTT) |
-| `TSY:<unix_ms>` | Start → Finish/Split | Zeitsynchronisation |
+| `TSY:<unix_ms>` | Start → Finish/Split | Time synchronisation |
 
 ---
 
-## Web-Interface
+## Web Interface
 
-| Tab | Inhalt |
-|-----|--------|
-| **Live** | Laufende Zeit, letztes/bestes Ergebnis, Akku, Verbindungsstatus |
-| **Verlauf** | History (letzte 20), Medaillen, CSV-Export |
-| **Duell** | Duell- & Runden-Modus steuern |
-| **Strecken** | Strecken/Fahrer verwalten, Bestenliste, Session-Archiv *(LILYGO)* |
-| **LoRa** | Signalstärke, RTT-Messung, Zeitsync |
-| **Einst.** | Alle konfigurierbaren Parameter |
-
----
-
-## Dokumentation
-
-- [Bedienungsanleitung](docs/BEDIENUNGSANLEITUNG.md) – vollständige Anleitung für den Betrieb
-- [Web-UI Vorschau](docs/MTB_Timer_Preview.html) – HTML-Datei lokal im Browser öffnen
+| Tab | Content |
+|-----|---------|
+| **Live** | Running time, last/best result, battery, connection status |
+| **History** | Last 20 results, medals, CSV export |
+| **Duel** | Control duel & lap mode |
+| **Tracks** | Manage tracks/riders, leaderboard, session archive *(LILYGO)* |
+| **LoRa** | Signal strength, RTT measurement, time sync |
+| **Settings** | All configurable parameters |
 
 ---
 
-## Lizenz
+## Documentation
 
-MIT License – frei verwendbar, keine Garantie.
+- [User Manual](docs/BEDIENUNGSANLEITUNG.md) – full operating guide
+- [Web UI Preview](docs/MTB_Timer_Preview.html) – open HTML file locally in browser
+
+---
+
+## License
+
+MIT License – free to use, no warranty.
