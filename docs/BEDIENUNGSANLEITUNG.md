@@ -1,297 +1,297 @@
-# MTB Timer – Bedienungsanleitung
+# MTB Timer – User Manual
 
-## Systemübersicht
+## System Overview
 
-Das MTB-Zeitmesssystem besteht aus bis zu drei Geräten (Nodes), die drahtlos über LoRa (868 MHz) miteinander kommunizieren:
+The MTB timing system consists of up to three devices (nodes) communicating wirelessly via LoRa (868 MHz):
 
-| Node | Funktion | Farbe/Markierung |
-|------|----------|-----------------|
-| **Start** | Startet die Zeitmessung, zeigt Ergebnisse, verwaltet Strecken | Hauptgerät |
-| **Finish** | Stoppt die Zeit am Ziel | Zielgerät |
-| **Split** | Optionale Zwischenzeit | Zwischengerät |
+| Node | Function | Marking |
+|------|----------|---------|
+| **Start** | Starts timing, displays results, manages tracks | Main device |
+| **Finish** | Stops time at the finish line | Finish device |
+| **Split** | Optional intermediate time | Split device |
 
-Alle Geräte öffnen ein eigenes WLAN-Netzwerk. Du verbindest dich mit dem Smartphone/Tablet und öffnest `http://192.168.4.1` im Browser.
-
----
-
-## 1. Einschalten & Verbinden
-
-1. **Gerät einschalten** (Akku anschließen oder USB einstecken)
-2. OLED-Display zeigt Boot-Screen mit WLAN-Name und IP-Adresse
-3. Am Smartphone: **WLAN-Einstellungen** → Netzwerk auswählen:
-   - Start: `MTB-Time-START` (Heltec) oder `MTB-Start-LILYGO`
-   - Finish: `MTB-Timer-Ziel` oder `MTB-Ziel-LILYGO`
-   - Split: `MTB-Split-Node` oder `MTB-Split-LILYGO`
-4. Browser öffnen → `http://192.168.4.1`
-
-> **Tipp:** Die Geräte haben kein Internet. Der Browser zeigt evtl. eine Meldung „Kein Internetzugang" — das ist normal.
+All devices open their own Wi-Fi network. Connect your smartphone/tablet and open `http://192.168.4.1` in the browser.
 
 ---
 
-## 2. Erste Inbetriebnahme
+## 1. Power On & Connect
 
-### Uhrzeit synchronisieren
-Ohne Zeitsync werden keine Timestamps in der History gespeichert.
+1. **Power on device** (connect battery or plug in USB)
+2. OLED display shows boot screen with Wi-Fi name and IP address
+3. On smartphone: **Wi-Fi settings** → select network:
+   - Start: `MTB-Time-START` (Heltec) or `MTB-Start-LILYGO`
+   - Finish: `MTB-Timer-Ziel` or `MTB-Ziel-LILYGO`
+   - Split: `MTB-Split-Node` or `MTB-Split-LILYGO`
+4. Open browser → `http://192.168.4.1`
 
-1. Start-Browser öffnen → Tab **LoRa** → **Uhrzeit-Sync** → Button **Synchronisieren**
-2. Die Zeit wird vom Smartphone übernommen und automatisch an Finish/Split weitergegeben
-3. Status zeigt ✓ wenn synchronisiert
-
-### Nodes verbinden
-- Start sendet alle 30 s automatisch ein **Ping** an Finish/Split
-- Verbindungsanzeige im Live-Tab: **grün** = verbunden (< 35 s), **gelb** = schwach, **rot** = getrennt
-- Falls rot: Geräte näher zusammenbringen oder Ping manuell senden (LoRa-Tab)
+> **Tip:** Devices have no internet. The browser may show "No internet access" — this is normal.
 
 ---
 
-## 3. Einfacher Lauf (Standardmodus)
+## 2. Initial Setup
 
-1. **Start-Node** ist bereit → OLED zeigt „BEREIT" oder Browser zeigt grünen Status
-2. **Fahrer passiert den Start-Sensor** → Timer startet
-3. OLED und Browser zeigen laufende Zeit
-4. **Fahrer passiert den Ziel-Sensor** → Zeit wird gestoppt und auf dem Start-Display angezeigt
-5. Ergebnis bleibt für 8 Sekunden (konfigurierbar) sichtbar
+### Sync Time
+Without time sync, no timestamps are saved in history.
 
-### Lauf abbrechen
-- Browser: Button **Abbrechen** (Live-Tab)
-- Gerät: **PRG-Taste zweimal kurz drücken** (Doppelklick < 400 ms)
+1. Open Start browser → Tab **LoRa** → **Time Sync** → Button **Synchronise**
+2. Time is taken from the smartphone and automatically forwarded to Finish/Split
+3. Status shows ✓ when synchronised
 
----
-
-## 4. Strecken & Fahrer einrichten (LILYGO mit SD-Karte)
-
-Für vollständiges Tracking muss eine SD-Karte eingesteckt sein.
-
-### Strecke anlegen
-1. Browser → Tab **Strecken**
-2. **Strecken** → Button **+ Neu**
-3. Name eingeben (max. 20 Zeichen), Info optional (Streckenlänge, Schwierigkeit)
-4. **Speichern** → Strecke erscheint in der Liste
-5. **Wählen** → Strecke ist jetzt aktiv (orange markiert)
-
-### Fahrer anlegen
-1. Browser → Tab **Strecken** → Abschnitt **Fahrer** → **+ Neu**
-2. Name eingeben → **Speichern**
-3. **Wählen** → Fahrer ist aktiv
-
-### Bedingung setzen
-Im Tab **Strecken** oben die aktuelle Streckenbedingung wählen:
-- ☀ Trocken | 💧 Nass | 🍂 Laubig | ❄ Eis | — (keine Angabe)
-
-Die Bedingung gilt für alle Läufe der aktuellen Session.
-
-### Session-Info im Live-Tab
-Die aktuelle Strecke, Fahrer und Bedingung werden im Live-Tab als Karte angezeigt. Klick auf **Strecken & Fahrer verwalten** öffnet den Strecken-Tab.
+### Connect Nodes
+- Start automatically sends a **ping** to Finish/Split every 30 s
+- Connection indicator in Live tab: **green** = connected (< 35 s), **yellow** = weak, **red** = disconnected
+- If red: move devices closer together or send ping manually (LoRa tab)
 
 ---
 
-## 5. Duell-Modus
+## 3. Simple Run (Standard Mode)
 
-Mehrere Fahrer fahren nacheinander, automatische Rangliste am Ende.
+1. **Start node** is ready → OLED shows "READY" or browser shows green status
+2. **Rider passes the start sensor** → timer starts
+3. OLED and browser show running time
+4. **Rider passes the finish sensor** → time is stopped and displayed on the start device
+5. Result is visible for 8 seconds (configurable)
 
-1. Browser → Tab **Duell** → **Duell starten**
-2. Anzahl der Fahrer wählen (2–10)
-3. Namen eingeben (erscheinen auf OLED und in der Rangliste)
-4. **Starten** → System wartet auf Sensor-Auslösung
-5. Jeder Fahrer fährt der Reihe nach
-6. Nach dem letzten Fahrer: automatische Rangliste mit Zeiten und Medaillen
-7. **Schließen** beendet den Duell-Modus
-
-### Fahrer überspringen
-Browser → Tab **Duell** → **DNF (Nicht gefahren)** — Fahrer wird als DNF eingetragen.
+### Cancel a Run
+- Browser: Button **Cancel** (Live tab)
+- Device: **press PRG button twice quickly** (double-click < 400 ms)
 
 ---
 
-## 6. Runden-Modus (Lap)
+## 4. Tracks & Riders (LILYGO with SD Card)
 
-Für Rundstrecken oder wiederholte Sektoren.
+An SD card must be inserted for full tracking.
 
-1. Browser → Tab **Duell** → **Runden-Modus**
-2. Sensor-Auslösung startet **Runde 1**
-3. Jede weitere Auslösung beendet die aktuelle Runde und startet die nächste
-4. Browser → **Runden stoppen** beendet den Modus und zeigt Bestzeit
+### Create a Track
+1. Browser → Tab **Tracks**
+2. **Tracks** → Button **+ New**
+3. Enter name (max. 20 characters), info optional (length, difficulty)
+4. **Save** → track appears in the list
+5. **Select** → track is now active (highlighted orange)
 
----
+### Create a Rider
+1. Browser → Tab **Tracks** → section **Riders** → **+ New**
+2. Enter name → **Save**
+3. **Select** → rider is active
 
-## 7. Verlauf & Statistiken
+### Set Condition
+In the **Tracks** tab at the top, select the current track condition:
+- ☀ Dry | 💧 Wet | 🍂 Leafy | ❄ Ice | — (no info)
 
-### Verlauf-Tab
-Zeigt alle Läufe der aktuellen Session (letzte 20 im Speicher):
-- Sortierung nach Zeit (schnellste oben) oder chronologisch (Button rechts oben)
-- Medaillen für Platz 1–3
-- DNF-Einträge kursiv
+The condition applies to all runs in the current session.
 
-### Fahrernamen korrigieren (LILYGO)
-1. Verlauf-Tab → Auf den **Bleistift-Icon** neben einem Namen tippen
-2. Namen eingeben → **✓** bestätigen
-3. Name wird im Speicher und auf der SD-Karte aktualisiert
-
-### Ältere Einträge laden (LILYGO mit SD)
-Unten im Verlauf-Tab: Button **↓ Mehr laden** — lädt ältere Einträge von der SD-Karte nach.
-
-### Statistiken-Karte (LILYGO)
-Unterhalb des Verlaufs erscheint automatisch eine Statistik-Karte mit:
-- Anzahl Läufe | Bestzeit | Durchschnittszeit | Trend (↑ besser / ↓ schlechter)
+### Session Info in Live Tab
+Current track, rider and condition are shown as a card in the Live tab. Click **Manage Tracks & Riders** to open the Tracks tab.
 
 ---
 
-## 8. Session-Archiv (LILYGO)
+## 5. Duel Mode
 
-Browser → Tab **Strecken** → Abschnitt **Session-Archiv**
+Multiple riders run one after another, automatic leaderboard at the end.
 
-- Alle bisherigen Sessions werden als Datum-Datei angezeigt
-- Klick auf **Anzeigen** → Tabelle mit Strecke, Fahrer, Zeit, Datum, Bedingung
-- Weitere Seiten mit **Mehr laden** nachladen
+1. Browser → Tab **Duel** → **Start Duel**
+2. Select number of riders (2–10)
+3. Enter names (shown on OLED and in the leaderboard)
+4. **Start** → system waits for sensor trigger
+5. Each rider goes in turn
+6. After the last rider: automatic leaderboard with times and medals
+7. **Close** exits duel mode
 
-### Datenexport
-- **Verlauf-Tab → 💾 CSV** exportiert die aktuelle Session als CSV-Datei
-- Die Datei `log.csv` auf der SD-Karte enthält alle jemals gemessenen Läufe
-
----
-
-## 9. Bestenliste (LILYGO)
-
-Browser → Tab **Strecken** → Abschnitt **Bestenliste**
-- Top 10 schnellste Zeiten auf der aktiv gewählten Strecke
-- Lädt automatisch beim Öffnen des Strecken-Tabs
+### Skip a Rider
+Browser → Tab **Duel** → **DNF (Did Not Finish)** — rider is entered as DNF.
 
 ---
 
-## 10. Einstellungen
+## 6. Lap Mode
 
-Browser → Tab **Einst.** (Zahnrad)
+For circuits or repeated sectors.
+
+1. Browser → Tab **Duel** → **Lap Mode**
+2. Sensor trigger starts **Lap 1**
+3. Each further trigger ends the current lap and starts the next
+4. Browser → **Stop Laps** exits the mode and shows best time
+
+---
+
+## 7. History & Statistics
+
+### History Tab
+Shows all runs in the current session (last 20 in memory):
+- Sort by time (fastest first) or chronological (button top right)
+- Medals for positions 1–3
+- DNF entries in italics
+
+### Edit Rider Names (LILYGO)
+1. History tab → tap the **pencil icon** next to a name
+2. Enter name → confirm with **✓**
+3. Name is updated in memory and on the SD card
+
+### Load Older Entries (LILYGO with SD)
+At the bottom of the History tab: button **↓ Load More** — loads older entries from the SD card.
+
+### Statistics Card (LILYGO)
+A statistics card appears automatically below the history showing:
+- Number of runs | Best time | Average time | Trend (↑ better / ↓ worse)
+
+---
+
+## 8. Session Archive (LILYGO)
+
+Browser → Tab **Tracks** → section **Session Archive**
+
+- All previous sessions are listed by date
+- Click **View** → table with track, rider, time, date, condition
+- Load more pages with **Load More**
+
+### Data Export
+- **History tab → 💾 CSV** exports the current session as a CSV file
+- The file `log.csv` on the SD card contains all runs ever recorded
+
+---
+
+## 9. Leaderboard (LILYGO)
+
+Browser → Tab **Tracks** → section **Leaderboard**
+- Top 10 fastest times on the currently selected track
+- Loads automatically when the Tracks tab is opened
+
+---
+
+## 10. Settings
+
+Browser → Tab **Settings** (gear icon)
 
 ### Timing
-| Einstellung | Standard | Beschreibung |
-|-------------|----------|--------------|
-| Entprellung | 500 ms | Mindestabstand zwischen zwei Auslösungen |
-| Ergebnis-Anzeige | 8 s | Wie lange das Ergebnis sichtbar bleibt |
-| Lauf-Timeout | 5 min | Maximale Laufdauer |
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Debounce | 500 ms | Minimum interval between two triggers |
+| Result display | 8 s | How long the result stays visible |
+| Run timeout | 5 min | Maximum run duration |
 
 ### LoRa
-| Einstellung | Standard | Beschreibung |
-|-------------|----------|--------------|
-| Kompensation | 0 ms | LoRa-Verzögerung abziehen (empfohlen: RTT/2) |
-| Sendeleistung | 14 dBm | 2–20 dBm; höher = mehr Reichweite, mehr Strom |
-| Ping-Intervall | 30 s | Wie oft Start an Finish/Split ein Lebenszeichen sendet |
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Compensation | 0 ms | Subtract LoRa delay (recommended: RTT/2) |
+| TX power | 14 dBm | 2–20 dBm; higher = more range, more current |
+| Ping interval | 30 s | How often Start sends a heartbeat to Finish/Split |
 
-### Display (alle Nodes)
-| Einstellung | Standard | Beschreibung |
-|-------------|----------|--------------|
-| Zusatztaste GPIO | 255 | GPIO-Pin einer externen Taste (255 = deaktiviert) |
-| Auto-Seite | 0 s | Sekunden bis automatischer Seitenwechsel (0 = aus) |
+### Display (all nodes)
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Extra button GPIO | 255 | GPIO pin for an external button (255 = disabled) |
+| Auto-page | 0 s | Seconds until automatic page change (0 = off) |
 
 ### Sensor
-| Einstellung | Standard | Beschreibung |
-|-------------|----------|--------------|
-| GPIO-Pin | 2 (Heltec) / 4 (LILYGO) | Pin der Druckplatte |
-| Sensor-Typ | NO | NO = schließt bei Auslösung, NC = öffnet |
+| Setting | Default | Description |
+|---------|---------|-------------|
+| GPIO pin | 2 (Heltec) / 4 (LILYGO) | Pressure plate pin |
+| Sensor type | NO | NO = closes on trigger, NC = opens on trigger |
 
-### Akku & Display
-| Einstellung | Beschreibung |
-|-------------|--------------|
-| Kapazität (mAh) | Für Restlaufzeit-Berechnung |
-| OLED-Helligkeit | 0–255 |
-
----
-
-## 11. Messgenauigkeit einstellen (LoRa-Kompensation)
-
-Die Funkübertragung zwischen Start und Finish dauert eine kleine Zeit (RTT = Hin- und Rückweg). Um dies zu korrigieren:
-
-1. Browser → Tab **LoRa** → Button **Messen**
-2. Das System misst die Laufzeit (RTT) der Funkverbindung
-3. Die Empfehlung wird angezeigt (z.B. „22 ms")
-4. Button **Übernehmen** → Wert wird in die Einstellungen eingetragen und gespeichert
+### Battery & Display
+| Setting | Description |
+|---------|-------------|
+| Capacity (mAh) | For remaining runtime calculation |
+| OLED brightness | 0–255 |
 
 ---
 
-## 12. Zeitzonensynchronisation
+## 11. Calibrating Accuracy (LoRa Compensation)
 
-1. Browser → Tab **LoRa** → Abschnitt **Uhrzeit-Sync**
-2. Zeigt: aktuelle Uhrzeit auf dem Node, letzter Sync-Zeitpunkt, Versatz zum Browser
-3. Button **Synchronisieren** → Überträgt die Smartphone-Zeit an alle verbundenen Nodes
-4. Finish und Split werden automatisch via LoRa synchronisiert
+Radio transmission between Start and Finish takes a small amount of time (RTT = round trip). To correct for this:
 
----
-
-## 13. Gerätebedienung (Tasten)
-
-### PRG-Taste (auf dem Gerät)
-| Aktion | Dauer | Funktion |
-|--------|-------|----------|
-| Kurz drücken | < 400 ms | Nächste OLED-Seite |
-| Doppelklick | 2× < 400 ms | Lauf abbrechen (während Lauf) |
-| Lang drücken | > 3 Sekunden | Deep Sleep |
-| Im Sleep | beliebig | Aufwachen |
-| Im Ergebnis | kurz | Ergebnis wegklicken |
-
-### Externe Taste (optional)
-Über **Einst. → Zusatztaste GPIO** kann ein beliebiger GPIO als zweite Taste konfiguriert werden. Neustart erforderlich. Funktion: Seite weiterschalten / Ergebnis wegklicken.
-
-### OLED-Seiten Start-Node
-| Seite | Inhalt |
-|-------|--------|
-| P1 MAIN | Status, laufende Zeit, letzte/beste Zeit, Akku |
-| P2 SIGNAL | RSSI, SNR, TX/RX-Statistik, Uptime |
-| P3 VERLAUF | Top 4 Zeiten |
-| P4 DUELL | Aktueller Fahrer, Fortschritt |
+1. Browser → Tab **LoRa** → Button **Measure**
+2. The system measures the radio latency (RTT)
+3. The recommendation is shown (e.g. "22 ms")
+4. Button **Apply** → value is saved to settings
 
 ---
 
-## 14. Deep Sleep / Akkuschonen
+## 12. Time Zone Synchronisation
 
-- PRG-Taste **3 Sekunden halten** → Gerät schläft ein (< 1 mA Verbrauch)
-- PRG-Taste kurz drücken → Aufwachen, alle Einstellungen bleiben erhalten
-- History und Bestzeiten bleiben im RTC-Speicher erhalten (solange Akku > 0)
-
----
-
-## 15. Fehlerbehebung
-
-### Keine Verbindung zwischen Nodes
-- Sind alle Nodes eingeschaltet?
-- Abstand < 200 m in freier Sicht?
-- Browser → Tab LoRa → **Manueller Ping** → Antwort in den Logs?
-- Frequenz und SF7/BW125 identisch auf allen Nodes?
-
-### Zeitmessung startet nicht
-- Sensor-Kabel am richtigen GPIO-Pin?
-- Einstellung Sensor-Typ: NO (schließt) oder NC (öffnet)?
-- Entprellzeit zu hoch? Auf 100 ms reduzieren
-
-### LILYGO startet nicht / leerer Bildschirm
-- Kein GPIO16 als Sensor-Pin verwenden (intern belegt)
-- Standard Sensor-Pin für LILYGO: GPIO 4
-
-### SD-Karte nicht erkannt
-- Karte korrekt eingesteckt?
-- FAT32 formatiert?
-- SD-MISO ist GPIO2 — Sensor-Pin nicht auf GPIO2 setzen!
-- Browser zeigt SD-Badge: ✓ Eingelegt / Nicht eingelegt
-
-### Upload schlägt fehl (LILYGO)
-- Upload Speed auf **115200** reduzieren (Einstellungen → Upload Speed)
-- **BOOT-Taste halten** → **RST drücken** → **BOOT loslassen** → Upload starten
-- CH9102-Treiber installiert? (Windows benötigt ggf. manuellen Download)
-
-### Zeit falsch / keine Zeitstempel
-- Browser → Tab LoRa → **Synchronisieren** drücken
-- Uhrzeit auf dem Smartphone korrekt eingestellt?
+1. Browser → Tab **LoRa** → section **Time Sync**
+2. Shows: current time on node, last sync timestamp, offset to browser
+3. Button **Synchronise** → transfers smartphone time to all connected nodes
+4. Finish and Split are automatically synchronised via LoRa
 
 ---
 
-## 16. Technische Daten
+## 13. Device Controls (Buttons)
 
-| Eigenschaft | Heltec V3 | LILYGO T3 V1.6.1 |
-|-------------|-----------|------------------|
-| Prozessor | ESP32-S3 | ESP32-PICO-D4 |
-| LoRa-Chip | SX1262 | SX1276 |
-| Frequenz | 868 MHz | 868 MHz |
-| Reichweite | ~1 km LOS | ~1 km LOS |
+### PRG Button (on device)
+| Action | Duration | Function |
+|--------|----------|----------|
+| Short press | < 400 ms | Next OLED page |
+| Double-click | 2× < 400 ms | Cancel run (during a run) |
+| Long press | > 3 seconds | Deep sleep |
+| While sleeping | any | Wake up |
+| After result | short | Dismiss result |
+
+### External Button (optional)
+An external button can be configured via **Settings → Extra button GPIO**. Restart required. Function: next page / dismiss result.
+
+### OLED Pages – Start Node
+| Page | Content |
+|------|---------|
+| P1 MAIN | Status, running time, last/best time, battery |
+| P2 SIGNAL | RSSI, SNR, TX/RX stats, uptime |
+| P3 HISTORY | Top 4 times |
+| P4 DUEL | Current rider, progress |
+
+---
+
+## 14. Deep Sleep / Battery Saving
+
+- Hold PRG button **3 seconds** → device sleeps (< 1 mA consumption)
+- Short PRG press → wake up, all settings are preserved
+- History and best times are retained in RTC memory (as long as battery > 0)
+
+---
+
+## 15. Troubleshooting
+
+### No connection between nodes
+- Are all nodes powered on?
+- Distance < 200 m line-of-sight?
+- Browser → LoRa tab → **Manual Ping** → response in logs?
+- Frequency and SF7/BW125 identical on all nodes?
+
+### Timing does not start
+- Sensor cable on the correct GPIO pin?
+- Sensor type setting: NO (closes) or NC (opens)?
+- Debounce too high? Reduce to 100 ms.
+
+### LILYGO does not start / blank screen
+- Do not use GPIO16 as sensor pin (internally used)
+- Default sensor pin for LILYGO: GPIO 4
+
+### SD card not detected
+- Card inserted correctly?
+- Formatted as FAT32?
+- SD-MISO is GPIO2 — do not set sensor pin to GPIO2!
+- Browser shows SD badge: ✓ Inserted / Not inserted
+
+### Upload fails (LILYGO)
+- Reduce upload speed to **115200** (Settings → Upload Speed)
+- **Hold BOOT** → **press RST** → **release BOOT** → start upload
+- CH9102 driver installed? (Windows may need manual download)
+
+### Wrong time / no timestamps
+- Browser → LoRa tab → press **Synchronise**
+- Is the time set correctly on the smartphone?
+
+---
+
+## 16. Technical Specifications
+
+| Property | Heltec V3 | LILYGO T3 V1.6.1 |
+|----------|-----------|------------------|
+| Processor | ESP32-S3 | ESP32-PICO-D4 |
+| LoRa chip | SX1262 | SX1276 |
+| Frequency | 868 MHz | 868 MHz |
+| Range | ~1 km LOS | ~1 km LOS |
 | Display | SSD1306 128×64 | SSD1306 128×64 |
-| SD-Karte | – | ✓ MicroSD |
-| Stromverbrauch aktiv | ~80 mA | ~80 mA |
-| Stromverbrauch Sleep | < 1 mA | < 1 mA |
-| Akku (typisch) | 18650 1100 mAh | 18650 1100 mAh |
-| Laufzeit | ~10–14 h | ~10–14 h |
+| SD card | – | ✓ MicroSD |
+| Active current | ~80 mA | ~80 mA |
+| Sleep current | < 1 mA | < 1 mA |
+| Battery (typical) | 18650 1100 mAh | 18650 1100 mAh |
+| Runtime | ~10–14 h | ~10–14 h |
