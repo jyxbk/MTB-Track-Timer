@@ -90,7 +90,10 @@ Doku auf den tatsächlichen Stand bringen.
     Zeiten ab 12.0.0 etwas länger), Abschnitt 11 (Kompensation) bereits in Aufgabe 4a
   - `CHANGELOG.md` mit 12.0.0 (Fixed/Changed/Added) und Verweis auf v11.0
   - Root-`platformio.ini`: veraltete Ordnernamen (Node1/Node2) im Kommentar ersetzt
-- [ ] 9. Abschluss: alles gepusht, Wiki-Projektseite `projekt-mtb-track-timer` aktualisieren
+- [x] 9. Abschluss: alles gepusht, Wiki-Projektseite `projekt-mtb-track-timer` aktualisieren
+  - Abschlussprüfung 2026-10-22: alle 9 Varianten bauen lokal, 30/30 Testfälle (native + native32),
+    CI grün, Arbeitsbaum sauber, `main` = `origin/main`
+  - Wiki: `projekt-mtb-track-timer` (Stand 12.0.0, offene Punkte), Index und Log aktualisiert
 
 ## Entscheidungen
 - 2026-10-22: Der leere lokale Ordner wird mit dem GitHub-Repo verbunden (`origin` = jyxbk/MTB-Track-Timer,
@@ -124,7 +127,7 @@ Doku auf den tatsächlichen Stand bringen.
 - Build lokal: `export PLATFORMIO_CORE_DIR=$PWD/.pio-core; .venv/bin/pio run -d <Ordner>`
   (erster Build lädt Toolchain, ~5 min). `.venv/` und `.pio-core/` sind in `.gitignore`.
 
-## Offene Punkte
+## Offene Punkte (brauchen den Nutzer – Projekt sonst abgeschlossen)
 - Hardware-Tests (Flashen, Funkstrecke, Sensoren) kann nur der Nutzer machen.
 - Alter Remote-Branch `master` – löschen? (nur nach Rückfrage; vorerst unangetastet)
 - Stag-Modus, Restrisiko: Startet ein weiterer Fahrer, während ein `TIM` des vorherigen noch unterwegs ist
