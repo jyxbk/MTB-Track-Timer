@@ -15,15 +15,15 @@
   #define DBGF(tag, ...)   do { Serial.printf("[%8lu] %-9s ", millis(), tag); \
                                 Serial.printf(__VA_ARGS__); Serial.println(); } while(0)
 #else
-  #define DBG(tag, msg)
-  #define DBGF(tag, ...)
+  #define DBG(tag, msg) do {} while (0)
+  #define DBGF(tag, ...) do {} while (0)
 #endif
 #if DEBUG_LEVEL >= 2
   #define DBGV(tag, msg)   DBG(tag, msg)
   #define DBGVF(tag, ...)  DBGF(tag, __VA_ARGS__)
 #else
-  #define DBGV(tag, msg)
-  #define DBGVF(tag, ...)
+  #define DBGV(tag, msg) do {} while (0)
+  #define DBGVF(tag, ...) do {} while (0)
 #endif
 
 #include <SPI.h>
