@@ -200,7 +200,14 @@ uint8_t       pendingPresses = 0;
 unsigned long lastPressAt    = 0;
 
 volatile bool rxFlag = false;
-IRAM_ATTR void onLoRaRx() { rxFlag = true; }
+volatile uint64_t rxAtUs = 0;  // Zeitpunkt des letzten LoRa-Interrupts (Paketende)
+IRAM_ATTR void onLoRaRx() { rxAtUs = (uint64_t)esp_timer_get_time(); rxFlag = true; }
+
+// Referenzzeit für STX: Interrupt-Zeitstempel, falls plausibel (< 1 s alt), sonst jetzt
+static inline uint64_t rxStartUs(uint64_t rxUs) {
+  uint64_t nowUs = (uint64_t)esp_timer_get_time();
+  return (rxUs > 0 && rxUs <= nowUs && nowUs - rxUs < 1000000ULL) ? rxUs : nowUs;
+}
 
 volatile bool btn2Flag = false;
 IRAM_ATTR void onBtn2() { btn2Flag = true; }
@@ -476,7 +483,8 @@ void loop() {
 
   // ── LoRa-Empfang ───────────────────────────────────────
   if (rxFlag) {
-    rxFlag = false; String msg; int16_t rc = radio.readData(msg); radio.startReceive();
+    rxFlag = false;
+    uint64_t rxUs = rxAtUs; String msg; int16_t rc = radio.readData(msg); radio.startReceive();
     if (rc == RADIOLIB_ERR_NONE) {
       loraRssi=radio.getRSSI(); loraSnr=radio.getSNR(); loraLastContact=now; loraRxCount++;
       if(!loraHasRx||loraRssi<loraRssiMin)loraRssiMin=loraRssi;
@@ -487,7 +495,7 @@ void loop() {
       if (msg.startsWith("STX")) {
         if (msg.length()>4&&msg[3]==':') { strncpy(currentRiderName,msg.c_str()+4,NAME_MAX_LEN); currentRiderName[NAME_MAX_LEN]='\0'; }
         else currentRiderName[0]='\0';
-        startRecvUs=(uint64_t)esp_timer_get_time(); plateFlag=false; retryCnt=0; ackReceived=false; appState=ARMED;
+        startRecvUs = rxStartUs(rxUs); plateFlag=false; retryCnt=0; ackReceived=false; appState=ARMED;
         drawDisplay();
         DBGF("STATE", "ARMED ← STX  Fahrer: %s", strlen(currentRiderName)>0?currentRiderName:"(kein)");
       }

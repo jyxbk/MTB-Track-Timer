@@ -198,7 +198,14 @@ uint8_t       pendingPresses = 0;
 unsigned long lastPressAt    = 0;
 
 volatile bool rxFlag = false;
-IRAM_ATTR void onLoRaRx() { rxFlag = true; }
+volatile uint64_t rxAtUs = 0;  // Zeitpunkt des letzten LoRa-Interrupts (Paketende)
+IRAM_ATTR void onLoRaRx() { rxAtUs = (uint64_t)esp_timer_get_time(); rxFlag = true; }
+
+// Referenzzeit für STX: Interrupt-Zeitstempel, falls plausibel (< 1 s alt), sonst jetzt
+static inline uint64_t rxStartUs(uint64_t rxUs) {
+  uint64_t nowUs = (uint64_t)esp_timer_get_time();
+  return (rxUs > 0 && rxUs <= nowUs && nowUs - rxUs < 1000000ULL) ? rxUs : nowUs;
+}
 
 volatile bool btn2Flag = false;
 IRAM_ATTR void onBtn2() { btn2Flag = true; }
@@ -532,6 +539,7 @@ void loop() {
   // ── LoRa-Empfang ───────────────────────────────────────
   if (rxFlag) {
     rxFlag = false;
+    uint64_t rxUs = rxAtUs;
     String msg;
     int16_t rc = radio.readData(msg);
     radio.startReceive();
@@ -547,7 +555,7 @@ void loop() {
       DBGVF("LORA-RX", "\"%s\"  RSSI=%d dBm  SNR=%.1f dB", msg.c_str(), (int)loraRssi, loraSnr);
 
       if (msg.startsWith("STX")) {
-        startRecvUs  = (uint64_t)esp_timer_get_time();
+        startRecvUs = rxStartUs(rxUs);
         plateFlag    = false;
         retryCnt     = 0;
         ackReceived  = false;

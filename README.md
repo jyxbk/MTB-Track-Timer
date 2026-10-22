@@ -82,7 +82,7 @@ Each node folder contains:
 
 ## Features
 
-- **Precise timing** – µs-accurate ISR timestamps, configurable LoRa compensation
+- **Precise timing** – µs-accurate ISR timestamps, automatic LoRa latency compensation
 - **Web UI** – Apple-style, dark/light mode, runs entirely in the browser without an app
 - **Duel mode** – up to 10 riders, automatic leaderboard
 - **Lap mode** – unlimited laps, best-time tracking
@@ -90,7 +90,7 @@ Each node folder contains:
 - **SD logging** *(LILYGO)* – tracks, riders, sessions, leaderboard, CSV export
 - **OTA update** – firmware update directly via browser, no USB required
 - **Battery powered** – deep sleep (<1 mA), ~10–14 h runtime with 18650
-- **LoRa diagnostics** – RTT measurement, signal strength, automatic compensation recommendation
+- **LoRa diagnostics** – RTT measurement, signal strength
 
 ---
 

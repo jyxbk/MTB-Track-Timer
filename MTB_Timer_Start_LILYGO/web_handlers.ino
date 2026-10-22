@@ -298,7 +298,7 @@ void saveSettings() {
   prefs.putUInt("result",    cfg_result_show_ms);
   prefs.putUInt("timeout",   cfg_run_timeout_ms);
   prefs.putUInt("ping",      cfg_ping_ms);
-  prefs.putUInt("loracomp",  cfg_lora_comp_ms);
+  prefs.putUInt("loraadd",  cfg_lora_comp_ms);
   prefs.putUInt("batmah",    cfg_bat_mah);
   prefs.putUChar("contrast", cfg_contrast);
   prefs.putUChar("platepin", cfg_plate_pin);

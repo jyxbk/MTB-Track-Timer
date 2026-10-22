@@ -171,7 +171,7 @@ Browser → Tab **Settings** (gear icon)
 ### LoRa
 | Setting | Default | Description |
 |---------|---------|-------------|
-| Compensation | 0 ms | Subtract LoRa delay (recommended: RTT/2) |
+| Extra correction | 0 ms | Added to every measured time; radio latency is compensated automatically, so normally 0 |
 | TX power | 14 dBm | 2–20 dBm; higher = more range, more current |
 | Ping interval | 30 s | How often Start sends a heartbeat to Finish/Split |
 
@@ -195,14 +195,24 @@ Browser → Tab **Settings** (gear icon)
 
 ---
 
-## 11. Calibrating Accuracy (LoRa Compensation)
+## 11. Accuracy and Radio Latency
 
-Radio transmission between Start and Finish takes a small amount of time (RTT = round trip). To correct for this:
+Finish and Split start their clock when the `STX` message from the Start node arrives. That message
+needs some time (start trigger → radio transmission complete, typically 30–60 ms at SF7, longer with
+a rider name). Without correction every time would be too short by this amount.
 
-1. Browser → Tab **LoRa** → Button **Measure**
-2. The system measures the radio latency (RTT)
-3. The recommendation is shown (e.g. "22 ms")
-4. Button **Apply** → value is saved to settings
+Since this version the latency is compensated **automatically**:
+
+1. The Start node measures the time from the pressure-plate trigger until the `STX` transmission is complete.
+2. Finish/Split take the reception timestamp directly in the radio interrupt (no loop delay).
+3. When `TIM`/`SPL` arrives, the Start node adds the measured latency to the result.
+
+The setting **Extra correction** (Settings → LoRa) is only for fine-tuning a remaining constant offset
+and is *added* to every time. Leave it at 0 unless a reference measurement shows a systematic deviation.
+The **Measure** button in the LoRa tab still shows the round-trip time (RTT) as a link-quality indicator.
+
+> Note: Older firmware *subtracted* the compensation value, which made times even shorter.
+> The stored value is not taken over after the update (new setting, default 0).
 
 ---
 

@@ -657,11 +657,7 @@ void sendHTML() {
     char rttBuf[8]; snprintf(rttBuf, sizeof(rttBuf), "%lu", lastRttMs);
     char recBuf[8]; snprintf(recBuf, sizeof(recBuf), "%lu", lastRttMs / 2);
     const char* rttCls = lastRttMs == 0 ? "e" : lastRttMs < 300 ? "ok" : lastRttMs < 600 ? "w" : "e";
-    const char* compHint = lastRttMs == 0 ? "&#9201; Latenz messen um Empfehlung zu erhalten"
-                         : cfg_lora_comp_ms == 0                       ? "&#9888; Kompensation nicht gesetzt"
-                         : (long)cfg_lora_comp_ms > (long)(lastRttMs/2)+50 ? "&#9888; Kompensation zu hoch"
-                         : (long)cfg_lora_comp_ms < (long)(lastRttMs/2)-50 ? "&#9888; Kompensation zu niedrig"
-                         : "&#10003; Kompensation passt";
+    const char* compHint = "&#10003; Funklaufzeit wird automatisch ausgeglichen &ndash; Zusatzkorrektur nur bei Bedarf";
     html += "<div class='c'><div class='lb'>&#127919; Messgenauigkeit</div>"
       // Node-Status
       "<div style='display:flex;gap:16px;margin-bottom:10px;font-size:.82em'>"
@@ -677,10 +673,10 @@ void sendHTML() {
       + (lastRttMs > 0 ? String(rttBuf) + " ms" : "&mdash;") + "</span><br>"
       "Einseitige Latenz (&frac12;&thinsp;RTT): <b id='rtt-half'>"
       + (lastRttMs > 0 ? String(recBuf) + " ms" : "&mdash;") + "</b><br>"
-      "Aktive Kompensation: <b id='comp-val'>" + String(compBuf) + " ms</b><br>"
+      "Zusatzkorrektur: <b id='comp-val'>" + String(compBuf) + " ms</b><br>"
       "<span id='comp-hint' style='font-size:.8em;color:#555'>" + compHint + "</span>"
       "</div>"
-      "<div id='rtt-apply' style='display:" + String(lastRttMs > 0 ? "flex" : "none") + ";"
+      "<div id='rtt-apply' style='display:" + String("none") + ";"
       "gap:8px;align-items:center;margin-top:8px;font-size:.82em;color:var(--sub)'>"
       "Empfehlung: <b id='rtt-rec-val'>" + String(lastRttMs > 0 ? String(recBuf) + " ms" : "") + "</b>"
       "<button onclick='_applyComp()' class='btn' style='padding:6px 14px;margin:0;font-size:.82em'>"
@@ -762,9 +758,9 @@ void sendHTML() {
     "<div class='sr2'><div class='sl'><span class='slb'>Ping-Intervall (s)</span>"
     "<input type='number' inputmode='numeric' pattern='[0-9]*' step='1' name='ping' value='" + String(cfg_ping_ms / 1000) + "' min='5' max='300'></div>"
     "<small class='hint'>Lebenszeichen-Intervall ans Ziel (5&ndash;300 s)</small></div>"
-    "<div class='sr2'><div class='sl'><span class='slb'>LoRa Kompensation (ms)</span>"
+    "<div class='sr2'><div class='sl'><span class='slb'>LoRa Zusatzkorrektur (ms)</span>"
     "<input type='number' inputmode='numeric' pattern='[0-9]*' step='1' name='loracomp' value='" + String(cfg_lora_comp_ms) + "' min='0' max='500'></div>"
-    "<small class='hint'>Funklatenz von gemessener Zeit abziehen (typisch 0&ndash;50 ms)</small></div>"
+    "<small class='hint'>Wird zur Zeit addiert &ndash; die Funklaufzeit gleicht das System selbst aus (normal 0)</small></div>"
     "<div class='sr2'><div class='sl'><span class='slb'>Sendeleistung (dBm)</span>"
     "<input type='number' name='lorapwr' value='" + String(cfg_lora_pwr) + "' min='2' max='20' inputmode='numeric'></div>"
     "<small class='hint'>2&ndash;20 dBm &bull; Standard: 14 dBm &bull; sofort wirksam</small></div>"
@@ -957,14 +953,10 @@ void sendHTML() {
     "if(rh)rh.textContent=d.rtt>0?half+' ms':'\\u2014';"
     "if(cv&&d.cfg)cv.textContent=d.cfg.lora_comp+' ms';"
     "if(rrv&&d.rtt>0)rrv.textContent=half+' ms';"
-    "if(ra)ra.style.display=d.rtt>0?'flex':'none';"
+    "if(ra)ra.style.display='none';"
     "if(ch){"
     "var comp=d.cfg?d.cfg.lora_comp:0;"
-    "if(d.rtt===0)ch.innerHTML='&#9201; Latenz messen um Empfehlung zu erhalten';"
-    "else if(comp===0&&half>20)ch.innerHTML='\\u26A0 Kompensation nicht gesetzt (Empfehlung: '+half+' ms)';"
-    "else if(comp>half+50)ch.innerHTML='\\u26A0 Kompensation zu hoch (Empfehlung: '+half+' ms)';"
-    "else if(comp+50<half)ch.innerHTML='\\u26A0 Kompensation zu niedrig (Empfehlung: '+half+' ms)';"
-    "else ch.innerHTML='\\u2713 Kompensation passt ('+comp+' ms \\u2248 RTT/2)';}"
+    "ch.innerHTML='\\u2713 Funklaufzeit wird automatisch ausgeglichen \\u2013 Zusatzkorrektur nur bei Bedarf';}"
     "}}"
     // Sync-Sektion im LoRa-Tab aktualisieren
     "var sb=document.getElementById('sync-lora-badge');"
@@ -1020,7 +1012,7 @@ void sendHTML() {
     "if((finDone||splDone)&&sd.rtt>0){"
     "clearInterval(ck);"
     "var half=Math.round(sd.rtt/2);"
-    "res.innerHTML='<span style=\"color:#4caf50\">&#10003; RTT: '+sd.rtt+' ms &bull; Empfehlung: '+half+' ms</span>';"
+    "res.innerHTML='<span style=\"color:#4caf50\">&#10003; RTT: '+sd.rtt+' ms</span>';"
     "_poll();"
     "setTimeout(function(){btn.disabled=false;res.textContent='';},5000);}"
     "else if(elapsed>8000){"

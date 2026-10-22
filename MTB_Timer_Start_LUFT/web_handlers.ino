@@ -360,7 +360,7 @@ void saveSettings() {
   if (prefs.getUInt("result",    8000)   != cfg_result_show_ms)        prefs.putUInt("result",    cfg_result_show_ms);
   if (prefs.getUInt("timeout",   300000) != cfg_run_timeout_ms)        prefs.putUInt("timeout",   cfg_run_timeout_ms);
   if (prefs.getUInt("ping",      30000)  != cfg_ping_ms)               prefs.putUInt("ping",      cfg_ping_ms);
-  if (prefs.getUInt("loracomp",  0)      != cfg_lora_comp_ms)          prefs.putUInt("loracomp",  cfg_lora_comp_ms);
+  if (prefs.getUInt("loraadd",  0)      != cfg_lora_comp_ms)          prefs.putUInt("loraadd",  cfg_lora_comp_ms);
   if (prefs.getUInt("batmah",    1100)   != cfg_bat_mah)               prefs.putUInt("batmah",    cfg_bat_mah);
   if (prefs.getUInt("bmpthresh", 80)     != cfg_pressure_threshold_pa) prefs.putUInt("bmpthresh", cfg_pressure_threshold_pa);
   if (prefs.getUInt("bmpcaldly", 3000)   != cfg_bmp_cal_delay_ms)      prefs.putUInt("bmpcaldly", cfg_bmp_cal_delay_ms);

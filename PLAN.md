@@ -42,6 +42,9 @@ Doku auf den tatsächlichen Stand bringen.
     lädt `firmware.bin` je Variante als Artefakt hoch; Build-Badge in README. Erster Lauf grün (~3 min).
 - [ ] 4. Code-Review der Kernlogik (ISR/Entprellung, Zeitberechnung, Überläufe, LoRa-Parsing,
       Web-Handler-Eingaben, Puffergrößen) → gefundene Fehler in allen betroffenen Varianten beheben
+  - [x] 4a. Zeitberechnung Start↔Ziel/Split (siehe Entscheidung „Laufzeitkompensation“); alle 9 bauen
+  - [ ] 4b. Web-Handler-Eingaben (Grenzen, Namen/Escaping), Puffergrößen/Format-Truncation-Warnungen,
+        Entprellung/Lap-Modus, restliche Compiler-Warnungen
 - [ ] 5. Gemeinsame, hardwarefreie Logik in eine geteilte Bibliothek (`lib/mtb_common`:
       Protokoll formatieren/parsen, Zeitformatierung, Kompensation) auslagern und von allen
       Varianten nutzen lassen
@@ -63,10 +66,26 @@ Doku auf den tatsächlichen Stand bringen.
   der Standardtabelle (1,25 MB) zu groß (106 %). Kein SPIFFS/LittleFS im Code → kein Verlust.
   Arduino IDE entspricht „Partition Scheme: Minimal SPIFFS“ (in README dokumentieren, Aufgabe 8).
 - LILYGO-Board in PlatformIO: `ttgo-lora32-v21` (Pins sind im Code ohnehin explizit definiert).
+- 2026-10-22 **Laufzeitkompensation** (Fehler behoben): Ziel/Split starten ihre Uhr erst beim Empfang
+  von `STX`; gemessene Zeiten waren daher um die Funklaufzeit (+ Loop-Verzögerung) zu kurz, und die
+  Kompensation wurde zusätzlich noch *abgezogen* statt addiert. Neu:
+  Start misst Auslösung → STX-Sendeende (`stxLagUs`) und addiert sie zu `TIM`/`SPL`;
+  Ziel/Split nehmen den Empfangszeitpunkt im LoRa-Interrupt (`rxAtUs`, Plausibilitätsprüfung < 1 s).
+  `cfg_lora_comp_ms` ist nur noch eine *addierte* Zusatzkorrektur (Standard 0), neuer NVS-Schlüssel
+  `loraadd` (alte, abgezogene Werte werden bewusst nicht übernommen). RTT-Empfehlung in der Web-UI entfernt.
+  Protokoll unverändert → alte und neue Knoten bleiben kompatibel (alte Ziel-Firmware nur etwas ungenauer).
+- Versetzter Start (Stag): Ziel wird beim Neu-Scharfschalten (Re-Arm-STX nach ACK) auf eine neue Referenz
+  gesetzt; die Startseite rechnete danach nicht mehr korrekt um (Zeit zu kurz). Jetzt einheitlich:
+  `t = Ziel-Messung + (Sendeende des letzten STX − Startzeit Fahrer k)`; Startzeit = ISR-Zeit der Platte.
 - Build lokal: `export PLATFORMIO_CORE_DIR=$PWD/.pio-core; .venv/bin/pio run -d <Ordner>`
   (erster Build lädt Toolchain, ~5 min). `.venv/` und `.pio-core/` sind in `.gitignore`.
 
 ## Offene Punkte
 - Hardware-Tests (Flashen, Funkstrecke, Sensoren) kann nur der Nutzer machen.
 - Alter Remote-Branch `master` – löschen? (nur nach Rückfrage; vorerst unangetastet)
+- Stag-Modus, Restrisiko: Startet ein weiterer Fahrer, während ein `TIM` des vorherigen noch unterwegs ist
+  (oder per Retry kommt), wird mit der neuen Referenz umgerechnet. Lösung bräuchte eine Protokollerweiterung
+  (z. B. Fahrer-Index in `TIM`) – nicht ohne Rücksprache.
+- Hardware-Test der neuen Kompensation: Referenzmessung (z. B. Platte Start und Ziel nebeneinander,
+  gleichzeitig auslösen → Ergebnis sollte ≈ 0 ms sein) durch den Nutzer.
 - LUFT-Variante für LILYGO fehlt (README: „currently only Heltec“) – mögliche spätere Aufgabe.

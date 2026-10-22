@@ -350,7 +350,7 @@ void saveSettings() {
   if (prefs.getUInt("result",    8000)    != cfg_result_show_ms) prefs.putUInt("result",    cfg_result_show_ms);
   if (prefs.getUInt("timeout",   300000)  != cfg_run_timeout_ms) prefs.putUInt("timeout",   cfg_run_timeout_ms);
   if (prefs.getUInt("ping",      30000)   != cfg_ping_ms)        prefs.putUInt("ping",      cfg_ping_ms);
-  if (prefs.getUInt("loracomp",  0)       != cfg_lora_comp_ms)   prefs.putUInt("loracomp",  cfg_lora_comp_ms);
+  if (prefs.getUInt("loraadd",  0)       != cfg_lora_comp_ms)   prefs.putUInt("loraadd",  cfg_lora_comp_ms);
   if (prefs.getUInt("batmah",    1100)    != cfg_bat_mah)        prefs.putUInt("batmah",    cfg_bat_mah);
   // UChar-Werte
   if (prefs.getUChar("contrast", 255)     != cfg_contrast)       prefs.putUChar("contrast", cfg_contrast);

@@ -454,9 +454,15 @@ void goToSleep() {
   esp_deep_sleep_start();
 }
 
+// Sendeende des letzten Pakets (µs) – Referenz für die automatische Laufzeitkompensation
+uint64_t      lastTxDoneUs = 0;
+uint64_t      stxLagUs     = 0;   // Auslösung Startplatte → STX vollständig gesendet
+unsigned long stagArmRefMs = 0;   // Sendeende des STX, mit dem Ziel/Split zuletzt scharf geschaltet wurden
+
 // ── LoRa senden (SX1276) ───────────────────────────────────
 void loRaSend(const char* msg) {
   int16_t rc = radio.transmit(msg);
+  lastTxDoneUs = (uint64_t)esp_timer_get_time();
   if (rc == RADIOLIB_ERR_NONE) {
     loraTxCount++;
     DBGVF("LORA-TX", "\"%s\"  OK  (#%lu)", msg, loraTxCount);
@@ -528,7 +534,7 @@ void setup() {
   cfg_result_show_ms = prefs.getUInt("result",     8000);
   cfg_run_timeout_ms = prefs.getUInt("timeout",    300000);
   cfg_ping_ms        = prefs.getUInt("ping",       30000);
-  cfg_lora_comp_ms   = prefs.getUInt("loracomp",   0);
+  cfg_lora_comp_ms   = prefs.getUInt("loraadd",   0);
   cfg_bat_mah        = prefs.getUInt("batmah",     1100);
   cfg_contrast       = prefs.getUChar("contrast",  255);
   cfg_plate_pin      = prefs.getUChar("platepin",  PLATE_PIN);
@@ -763,12 +769,13 @@ void loop() {
       if (offsetOk) {
         plateLastMs = now;
         uint8_t idx = stagStarted++;
-        stagStartMs[idx]  = now;
+        stagStartMs[idx]  = trigMs;
         stagLastStartMs   = now;
         stagArmedFor      = idx;
         char stxBuf[28];
         snprintf(stxBuf, sizeof(stxBuf), "STX:%s", stagRiders[idx]);
         loRaSend(stxBuf);
+        stagArmRefMs = (unsigned long)(lastTxDoneUs / 1000ULL);
         appState = RUNNING;
         ledBlinkCount = 6; ledBlinkAt = now;
         drawDisplay();
@@ -782,7 +789,8 @@ void loop() {
       const char* rn = (duelMode && duelCurrent < duelCount) ? duelRiders[duelCurrent] : "";
       if (strlen(rn) > 0) snprintf(stxBuf, sizeof(stxBuf), "STX:%s", rn);
       else                 strcpy(stxBuf, "STX");
-      loRaSend(stxBuf); drawDisplay();
+      loRaSend(stxBuf);
+      stxLagUs = (lastTxDoneUs > safeTrigUs) ? lastTxDoneUs - safeTrigUs : 0; drawDisplay();
       DBGF("STATE", "RUNNING ← Sensor (ISR @ %lluus)  STX gesendet", safeTrigUs);
     } else if (appState == LAP_IDLE) {
       lapRoundNum = 1; lapRoundStart = trigMs; lapLastMs = 0;
@@ -860,7 +868,7 @@ void loop() {
         char* ep; unsigned long raw_us = strtoul(msg.c_str() + 4, &ep, 10);
         if (ep != msg.c_str() + 4 && raw_us > 0 && raw_us <= 3600000000UL) {
           unsigned long t = (raw_us + 500UL) / 1000UL;
-          if (cfg_lora_comp_ms > 0 && t >= cfg_lora_comp_ms) t -= cfg_lora_comp_ms;
+          t += cfg_lora_comp_ms;  // Zusatzkorrektur
           // FIFO: ältester nicht-fertiger Fahrer
           uint8_t k = 0xFF;
           for (uint8_t i = 0; i < stagStarted; i++) {
@@ -868,10 +876,9 @@ void loop() {
           }
           if (k != 0xFF) {
             // Zeitkorrektur falls Finish für anderen Fahrer gewappnet war
-            if (stagArmedFor != 0xFF && stagArmedFor < stagCount && stagArmedFor != k) {
-              long corr = (long)stagStartMs[stagArmedFor] - (long)stagStartMs[k];
-              if (corr > 0 && (unsigned long)corr < 3600000UL) t += (unsigned long)corr;
-            }
+            // Ziel misst ab dem zuletzt gesendeten STX → auf den Start von Fahrer k umrechnen
+            long corr = (long)(stagArmRefMs - stagStartMs[k]);
+            if (corr > 0 && (unsigned long)corr < 3600000UL) t += (unsigned long)corr;
             stagTimes[k] = t;
             stagFinishedMask |= (1u << k);
             stagFinished++;
@@ -904,7 +911,7 @@ void loop() {
         finishLastContact = now;
         char* ep; unsigned long t = strtoul(msg.c_str() + 4, &ep, 10);
         if (ep != msg.c_str() + 4 && t > 0 && t <= 3600000000UL) {
-          if (cfg_lora_comp_ms > 0 && t >= cfg_lora_comp_ms * 1000UL) t -= cfg_lora_comp_ms * 1000UL;
+          t += stxLagUs + cfg_lora_comp_ms * 1000UL;  // Funklaufzeit STX (gemessen) + Zusatzkorrektur
           t = (t + 500UL) / 1000UL;
           const char* riderName = (duelMode && duelCurrent < duelCount) ? duelRiders[duelCurrent] : "";
           lastTimeMs = t;
@@ -915,7 +922,7 @@ void loop() {
           drawDisplay(); loRaSend("ACK");
           char tbuf[12]; fmtTime(t, tbuf);
           bool isBest = (bestTimeMs > 0 && t == bestTimeMs);
-          DBGF("RESULT", "%s%s  (comp=-%lums gerundet)", tbuf, isBest ? "  *** BESTZEIT ***" : "", cfg_lora_comp_ms);
+          DBGF("RESULT", "%s%s  (comp=+%lums gerundet)", tbuf, isBest ? "  *** BESTZEIT ***" : "", cfg_lora_comp_ms);
           if (duelDone) DBG("DUEL", "Duell beendet");
           else if (duelMode) DBGF("DUEL", "Fahrer %u/%u als naechster", duelCurrent + 1, duelCount);
         } else {
@@ -932,11 +939,11 @@ void loop() {
         splitLastContact = now;
         char* ep; unsigned long t = strtoul(msg.c_str() + 4, &ep, 10);
         if (ep != msg.c_str() + 4 && t > 0 && t <= 3600000000UL) {
-          if (cfg_lora_comp_ms > 0 && t >= cfg_lora_comp_ms * 1000UL) t -= cfg_lora_comp_ms * 1000UL;
+          t += stxLagUs + cfg_lora_comp_ms * 1000UL;  // Funklaufzeit STX (gemessen) + Zusatzkorrektur
           t = (t + 500UL) / 1000UL;
           splitTimeMs = t; splitRxAt = now; loRaSend("ACK");
           char tbuf[12]; fmtTime(t, tbuf);
-          DBGF("SPLIT", "%s  (comp=-%lums gerundet)", tbuf, cfg_lora_comp_ms);
+          DBGF("SPLIT", "%s  (comp=+%lums gerundet)", tbuf, cfg_lora_comp_ms);
         } else {
           DBGF("LORA-RX", "SPL: ungueltige Nutzlast ignoriert: \"%s\"", msg.c_str());
         }
@@ -949,6 +956,7 @@ void loop() {
     char stxBuf[28];
     snprintf(stxBuf, sizeof(stxBuf), "STX:%s", stagRiders[stagRearmIdx]);
     loRaSend(stxBuf);
+    stagArmRefMs = (unsigned long)(lastTxDoneUs / 1000ULL);
     stagRearmIdx = 0xFF;
     stagRearmAt  = 0;
   }
