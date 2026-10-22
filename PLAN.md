@@ -66,7 +66,13 @@ Doku auf den tatsächlichen Stand bringen.
   - Alle 9 Varianten nutzen sie (Einbindung per `symlink://../lib/mtb_common` in `platformio.ini`);
     ersetzt ~200 duplizierte Zeilen. Alle 9 bauen, Warnungszahl unverändert (98).
   - `upBuf` in den Web-Seiten von 12 auf 14 Byte (passend zu `fmtDuration`)
-- [ ] 6. Native Unit-Tests (`pio test -e native`, Unity) für die geteilte Bibliothek; in CI aufnehmen
+- [x] 6. Native Unit-Tests (`pio test -e native`, Unity) für die geteilte Bibliothek; in CI aufnehmen
+  - `tests/` (eigenes PlatformIO-Projekt): 14 Testfälle für alle Funktionen in `mtb_common.h`,
+    u. a. Kompensations-Vorzeichen, Stag-Umrechnung inkl. Re-Arm, Protokoll-Grenzfälle, Puffergrenzen
+  - zwei Umgebungen: `native` (64 bit) und `native32` (`-m32`, `unsigned long` = 32 bit wie ESP32)
+  - Gegencheck: absichtlich falsches Vorzeichen in `compensatedMs` → 2 Tests schlagen fehl
+  - CI: Job `test` (installiert `g++-multilib`), läuft vor/parallel zu den Firmware-Builds
+  - lokal: `PLATFORMIO_CORE_DIR=$PWD/.pio-core .venv/bin/pio test -d tests`
 - [ ] 7. Versionierung vereinheitlichen (eine zentrale Versionskonstante, Bootlog/OLED/Web-UI daraus)
 - [ ] 8. Doku aktualisieren: README (Build mit PlatformIO für alle Varianten, CI-Badge, Versionen),
       Bedienungsanleitung abgleichen, CHANGELOG anlegen

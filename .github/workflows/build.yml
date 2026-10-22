@@ -7,6 +7,24 @@ on:
   workflow_dispatch:
 
 jobs:
+  test:
+    name: unit tests (lib/mtb_common)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install PlatformIO and 32-bit toolchain
+        run: |
+          pip install platformio
+          sudo apt-get update -q && sudo apt-get install -y -q g++-multilib
+
+      - name: Run unit tests (64 + 32 bit)
+        run: pio test -d tests
+
   build:
     runs-on: ubuntu-latest
     strategy:
