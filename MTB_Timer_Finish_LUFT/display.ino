@@ -115,7 +115,7 @@ void drawSensorPage() {
     u8g2.drawStr(0, 33, buf);
     snprintf(buf, sizeof(buf), "Delta:   %+.1f Pa", delta);
     u8g2.drawStr(0, 44, buf);
-    snprintf(buf, sizeof(buf), "Schwelle:%u Pa", cfg_pressure_threshold_pa);
+    snprintf(buf, sizeof(buf), "Schwelle:%u Pa", (unsigned)cfg_pressure_threshold_pa);
     u8g2.drawStr(0, 55, buf);
   }
   u8g2.sendBuffer();

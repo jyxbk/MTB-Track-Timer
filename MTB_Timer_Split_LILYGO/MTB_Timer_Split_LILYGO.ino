@@ -210,7 +210,7 @@ void sdClear();
 void handleSdFormat();
 
 // ── Hilfsfunktionen ────────────────────────────────────────
-void fmtTime(unsigned long ms, char* out) { sprintf(out,"%02u:%02u.%03u",(unsigned)(ms/60000),(unsigned)((ms%60000)/1000),(unsigned)(ms%1000)); }
+void fmtTime(unsigned long ms, char* out) { snprintf(out, 12, "%02u:%02u.%03u",(unsigned)(ms/60000),(unsigned)((ms%60000)/1000),(unsigned)(ms%1000)); }
 void fmtUptime(char* out) { unsigned long s=millis()/1000,m=s/60;s%=60;unsigned long h=m/60;m%=60;sprintf(out,"%lu:%02lu:%02lu",h,m,s); }
 uint8_t voltageToPct(float v) {
   static const float vpts[]={3.00f,3.20f,3.30f,3.40f,3.50f,3.60f,3.70f};

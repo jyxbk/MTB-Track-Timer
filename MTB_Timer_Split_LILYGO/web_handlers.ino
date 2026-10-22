@@ -3,6 +3,7 @@ void handleCancel() { cancelRun(); server.sendHeader("Location","/"); server.sen
 void handleSetTime() {
   if(server.hasArg("ts")){
     int64_t rxTs=(int64_t)atoll(server.arg("ts").c_str());
+    if (rxTs < 1000000000000LL) { server.send(400, "text/plain", "bad ts"); return; }
     timeOffsetMs=rxTs-(int64_t)millis(); timeIsSynced=true; lastSyncAt=millis();
   }
   server.send(204,"text/plain","");
@@ -34,6 +35,7 @@ void handleSettingsSave() {
   }
   if (server.hasArg("btn2pin")) {
     uint8_t np = (uint8_t)constrain(server.arg("btn2pin").toInt(), 0, 255);
+    if (np != 255 && !GPIO_IS_VALID_GPIO(np)) np = cfg_btn2_pin;
     if (np != cfg_btn2_pin) { cfg_btn2_pin = np; needsRestart = true; }
   }
   if (server.hasArg("autopage")) {
@@ -44,7 +46,7 @@ void handleSettingsSave() {
   if(server.hasArg("maxretry"))cfg_max_retries=(uint8_t)constrain(server.arg("maxretry").toInt(),1,10);
   if(server.hasArg("batmah"))cfg_bat_mah=(uint32_t)constrain(server.arg("batmah").toInt(),100,10000);
   if(server.hasArg("contrast")){cfg_contrast=(uint8_t)server.arg("contrast").toInt();u8g2.setContrast(cfg_contrast);}
-  if(server.hasArg("platepin")){uint8_t np=(uint8_t)server.arg("platepin").toInt();if(np!=cfg_plate_pin){cfg_plate_pin=np;needsRestart=true;}}
+  if(server.hasArg("platepin")){uint8_t np=(uint8_t)server.arg("platepin").toInt(); if (!GPIO_IS_VALID_GPIO(np)) np = cfg_plate_pin;if(np!=cfg_plate_pin){cfg_plate_pin=np;needsRestart=true;}}
   if(server.hasArg("platenc")&&!needsRestart){bool nc=(server.arg("platenc")=="1");if(nc!=cfg_plate_nc){cfg_plate_nc=nc;detachInterrupt(digitalPinToInterrupt(cfg_plate_pin));attachInterrupt(digitalPinToInterrupt(cfg_plate_pin),onPlateTrigger,cfg_plate_nc?RISING:FALLING);}}
   else if(server.hasArg("platenc"))cfg_plate_nc=(server.arg("platenc")=="1");
   if(server.hasArg("apssid")){String s=server.arg("apssid");s.trim();if(s.length()>0&&s!=String(cfg_ap_ssid)){s.toCharArray(cfg_ap_ssid,sizeof(cfg_ap_ssid));needsRestart=true;}}

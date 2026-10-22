@@ -40,11 +40,23 @@ Doku auf den tatsächlichen Stand bringen.
 - [x] 3. GitHub-Actions-Workflow: alle Varianten bei jedem Push bauen (Firmware als Artefakt)
   - `.github/workflows/build.yml`: Matrix über 9 Ordner, ruft `tools/build_all.sh <Ordner>`,
     lädt `firmware.bin` je Variante als Artefakt hoch; Build-Badge in README. Erster Lauf grün (~3 min).
-- [ ] 4. Code-Review der Kernlogik (ISR/Entprellung, Zeitberechnung, Überläufe, LoRa-Parsing,
+- [x] 4. Code-Review der Kernlogik (ISR/Entprellung, Zeitberechnung, Überläufe, LoRa-Parsing,
       Web-Handler-Eingaben, Puffergrößen) → gefundene Fehler in allen betroffenen Varianten beheben
   - [x] 4a. Zeitberechnung Start↔Ziel/Split (siehe Entscheidung „Laufzeitkompensation“); alle 9 bauen
-  - [ ] 4b. Web-Handler-Eingaben (Grenzen, Namen/Escaping), Puffergrößen/Format-Truncation-Warnungen,
-        Entprellung/Lap-Modus, restliche Compiler-Warnungen
+  - [x] 4b. Web-Handler und Warnungen:
+    - `/duelnext`, `/stagnext`: Schrittzähler nicht begrenzt → erneutes Absenden (Zurück/Neu laden)
+      schrieb hinter `duelRiders`/`stagRiders` (RTC-Speicher) → jetzt Weiterleitung zur Bestätigung
+    - `/duelgo`, `/staggo` ohne vorherige Einrichtung → aktivierten Modus mit 0 Fahrern → abgefangen
+    - `/settime`: nur plausible Unix-ms-Zeitstempel (≥ 1e12), sonst 400 (wie bereits bei `TSY`)
+    - `platepin`/`btn2pin`: nur gültige GPIOs (`GPIO_IS_VALID_GPIO`) übernehmen
+    - Namen: Steuerzeichen werden entfernt; Stag-Fahrer im `/state`-JSON escapen jetzt auch `\`
+    - `fmtTime` mit `snprintf` (begrenzt auf 12 Byte; alle Aufrufer haben ≥ 12)
+    - Warnungen: unbenutzte `isBest*` → `[[maybe_unused]]`, `%u` mit `uint32_t` gecastet
+    - Verbleibend (bewusst, harmlos): 56× `-Wformat-truncation` (nur `snprintf`, schneidet sicher ab),
+      24× `-Wattributes` (IRAM_ATTR an den von PlatformIO erzeugten .ino-Prototypen),
+      18× `__VA_ARGS__`-Hinweis aus der .ino→.cpp-Umwandlung
+    - Geprüft ohne Befund: Plattenen-ISR (erste Flanke, 64-bit-Zeitstempel mit Spinlock), TIM/SPL-Parsing
+      (strtoul + Bereichsprüfung), Ringpuffer der Historie, HTML-Escaping in Seiten und Verlauf
 - [ ] 5. Gemeinsame, hardwarefreie Logik in eine geteilte Bibliothek (`lib/mtb_common`:
       Protokoll formatieren/parsen, Zeitformatierung, Kompensation) auslagern und von allen
       Varianten nutzen lassen

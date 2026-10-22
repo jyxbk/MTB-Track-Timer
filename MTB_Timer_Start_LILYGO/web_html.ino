@@ -103,7 +103,7 @@ String buildState() {
   j += ",\"stagRiders\":[";
   for (uint8_t i = 0; i < stagCount; i++) {
     if (i) j += ",";
-    String rn = String(stagRiders[i]); rn.replace("\"","\\\"");
+    String rn = String(stagRiders[i]); rn.replace("\\", "\\\\"); rn.replace("\"","\\\"");
     bool started  = (i < stagStarted);
     bool finished = (stagFinishedMask & (1u << i)) != 0;
     j += "{\"n\":\""; j += rn;

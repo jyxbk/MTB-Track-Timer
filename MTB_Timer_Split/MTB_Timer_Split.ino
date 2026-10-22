@@ -212,7 +212,7 @@ IRAM_ATTR void onBtn2() { btn2Flag = true; }
 
 // ── Hilfsfunktionen ────────────────────────────────────────
 void fmtTime(unsigned long ms, char* out) {
-  sprintf(out, "%02u:%02u.%03u",
+  snprintf(out, 12, "%02u:%02u.%03u",
     (unsigned)(ms / 60000),
     (unsigned)((ms % 60000) / 1000),
     (unsigned)(ms % 1000));
@@ -611,7 +611,7 @@ void loop() {
       appState    = DONE;
       drawDisplay();
       char tbuf[12]; fmtTime(elapsedMs, tbuf);
-      bool isBestS = (bestTimeMs > 0 && elapsedMs == bestTimeMs);
+      [[maybe_unused]] bool isBestS = (bestTimeMs > 0 && elapsedMs == bestTimeMs);
       DBGF("RESULT",  "%s%s  (%luus roh)",
            tbuf, isBestS ? "  *** BESTZEIT ***" : "",
            (unsigned long)elapsedRaw);

@@ -266,7 +266,7 @@ IRAM_ATTR void onBtn2() { btn2Flag = true; }
 
 // ── Hilfsfunktionen ────────────────────────────────────────
 void fmtTime(unsigned long ms, char* out) {
-  sprintf(out, "%02u:%02u.%03u",
+  snprintf(out, 12, "%02u:%02u.%03u",
     (unsigned)(ms / 60000),
     (unsigned)((ms % 60000) / 1000),
     (unsigned)(ms % 1000));
@@ -854,7 +854,7 @@ void loop() {
           drawDisplay();
           loRaSend("ACK");
           char tbuf[12]; fmtTime(t, tbuf);
-          bool isBest = (bestTimeMs > 0 && t == bestTimeMs);
+          [[maybe_unused]] bool isBest = (bestTimeMs > 0 && t == bestTimeMs);
           DBGF("RESULT",  "%s%s  (comp=+%lums gerundet)",
                tbuf, isBest ? "  *** BESTZEIT ***" : "", cfg_lora_comp_ms);
           if (duelDone) DBG("DUEL",   "Duell beendet");

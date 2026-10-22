@@ -263,7 +263,7 @@ IRAM_ATTR void onBtn2() { btn2Flag = true; }
 
 // ── Hilfsfunktionen ────────────────────────────────────────
 void fmtTime(unsigned long ms, char* out) {
-  sprintf(out, "%02u:%02u.%03u",
+  snprintf(out, 12, "%02u:%02u.%03u",
     (unsigned)(ms / 60000),
     (unsigned)((ms % 60000) / 1000),
     (unsigned)(ms % 1000));

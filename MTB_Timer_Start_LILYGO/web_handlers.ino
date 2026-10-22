@@ -7,6 +7,7 @@ void handleCancel() {
 void handleSetTime() {
   if (server.hasArg("ts")) {
     int64_t rxTs = (int64_t)atoll(server.arg("ts").c_str());
+    if (rxTs < 1000000000000LL) { server.send(400, "text/plain", "bad ts"); return; }
     timeOffsetMs = rxTs - (int64_t)millis();
     timeIsSynced = true;
     lastSyncAt   = millis();
@@ -90,7 +91,11 @@ void handleDuelName() {
 }
 
 void handleDuelNext() {
-  String name = server.arg("name"); name.trim();
+  if (duelSetupStep >= duelSetupCount) {
+    server.sendHeader("Location", duelSetupCount ? "/duelconfirm" : "/duel"); server.send(303); return;
+  }
+  String name = server.arg("name");
+  for (int ci = (int)name.length() - 1; ci >= 0; ci--) if ((uint8_t)name[ci] < 0x20) name.remove(ci, 1);  // Steuerzeichen entfernen name.trim();
   if (name.length() == 0) name = "Fahrer " + String(duelSetupStep + 1);
   if ((int)name.length() > NAME_MAX_LEN) name = name.substring(0, NAME_MAX_LEN);
   strncpy(duelRiders[duelSetupStep], name.c_str(), NAME_MAX_LEN);
@@ -114,6 +119,7 @@ void handleDuelConfirm() {
 }
 
 void handleDuelGo() {
+  if (duelSetupCount == 0) { server.sendHeader("Location", "/duel"); server.send(303); return; }
   duelMode = true; duelDone = false; duelCurrent = 0;
   duelCount = duelSetupCount; duelStartIdx = histHead;
   server.sendHeader("Location", "/"); server.send(303);
@@ -206,7 +212,11 @@ void handleStagName() {
 }
 
 void handleStagNext() {
-  String name = server.arg("name"); name.trim();
+  if (stagSetupStep >= stagSetupCount) {
+    server.sendHeader("Location", stagSetupCount ? "/stagconfirm" : "/stag"); server.send(303); return;
+  }
+  String name = server.arg("name");
+  for (int ci = (int)name.length() - 1; ci >= 0; ci--) if ((uint8_t)name[ci] < 0x20) name.remove(ci, 1);  // Steuerzeichen entfernen name.trim();
   if (name.length() == 0) name = "Fahrer " + String(stagSetupStep + 1);
   if ((int)name.length() > NAME_MAX_LEN) name = name.substring(0, NAME_MAX_LEN);
   strncpy(stagRiders[stagSetupStep], name.c_str(), NAME_MAX_LEN);
@@ -232,6 +242,7 @@ void handleStagConfirm() {
 }
 
 void handleStagGo() {
+  if (stagSetupCount == 0) { server.sendHeader("Location", "/stag"); server.send(303); return; }
   stagCount = stagSetupCount;
   stagStarted = 0; stagFinished = 0;
   stagFinishedMask = 0; stagLastStartMs = 0;
@@ -341,7 +352,7 @@ void handleSettingsSave() {
     u8g2.setContrast(cfg_contrast);
   }
   if (server.hasArg("platepin")) {
-    uint8_t np = (uint8_t)server.arg("platepin").toInt();
+    uint8_t np = (uint8_t)server.arg("platepin").toInt(); if (!GPIO_IS_VALID_GPIO(np)) np = cfg_plate_pin;
     if (np != cfg_plate_pin) { cfg_plate_pin = np; needsRestart = true; }
   }
   if (server.hasArg("platenc") && !needsRestart) {
@@ -357,6 +368,7 @@ void handleSettingsSave() {
   }
   if (server.hasArg("btn2pin")) {
     uint8_t np = (uint8_t)constrain(server.arg("btn2pin").toInt(), 0, 255);
+    if (np != 255 && !GPIO_IS_VALID_GPIO(np)) np = cfg_btn2_pin;
     if (np != cfg_btn2_pin) { cfg_btn2_pin = np; needsRestart = true; }
   }
   if (server.hasArg("autopage")) {
@@ -511,7 +523,8 @@ void handleTracks() {
 
 void handleTrackSave() {
   if (!sdPresent) { server.send(400, "application/json", "{\"ok\":false}"); return; }
-  String name = server.arg("name"); name.trim();
+  String name = server.arg("name");
+  for (int ci = (int)name.length() - 1; ci >= 0; ci--) if ((uint8_t)name[ci] < 0x20) name.remove(ci, 1);  // Steuerzeichen entfernen name.trim();
   if (name.length() == 0 || name.length() > 20) { server.send(400, "application/json", "{\"ok\":false,\"msg\":\"Name 1-20 Zeichen\"}"); return; }
   String info = server.arg("info"); if (info.length() > 40) info = info.substring(0, 40);
   uint8_t id = (uint8_t)server.arg("id").toInt();
@@ -588,7 +601,8 @@ void handleRiders() {
 
 void handleRiderSave() {
   if (!sdPresent) { server.send(400, "application/json", "{\"ok\":false}"); return; }
-  String name = server.arg("name"); name.trim();
+  String name = server.arg("name");
+  for (int ci = (int)name.length() - 1; ci >= 0; ci--) if ((uint8_t)name[ci] < 0x20) name.remove(ci, 1);  // Steuerzeichen entfernen name.trim();
   if (name.length() == 0 || name.length() > 20) { server.send(400, "application/json", "{\"ok\":false,\"msg\":\"Name 1-20 Zeichen\"}"); return; }
   uint8_t id = (uint8_t)server.arg("id").toInt();
 
@@ -649,7 +663,8 @@ void handleCondition() {
 // ── Fahrernamen editieren (RTC + SD) ─────────────────────
 void handleEditName() {
   int idx = server.arg("idx").toInt();
-  String name = server.arg("name"); name.trim();
+  String name = server.arg("name");
+  for (int ci = (int)name.length() - 1; ci >= 0; ci--) if ((uint8_t)name[ci] < 0x20) name.remove(ci, 1);  // Steuerzeichen entfernen name.trim();
   if (idx < 0 || idx >= historyCnt || name.length() == 0 || name.length() > NAME_MAX_LEN) {
     server.send(400, "application/json", "{\"ok\":false}"); return;
   }

@@ -236,7 +236,7 @@ void handleSdFormat();
 
 // ── Hilfsfunktionen ────────────────────────────────────────
 void fmtTime(unsigned long ms, char* out) {
-  sprintf(out, "%02u:%02u.%03u",
+  snprintf(out, 12, "%02u:%02u.%03u",
     (unsigned)(ms / 60000), (unsigned)((ms % 60000) / 1000), (unsigned)(ms % 1000));
 }
 void fmtUptime(char* out) {
@@ -533,7 +533,7 @@ void loop() {
       loRaSend(txBuf); retryCnt=0; ackReceived=false; lastRetryAt=now; doneAt=now; appState=DONE;
       drawDisplay();
       char tbuf[12]; fmtTime(elapsedMs,tbuf);
-      bool isBestF = (bestTimeMs > 0 && elapsedMs == bestTimeMs);
+      [[maybe_unused]] bool isBestF = (bestTimeMs > 0 && elapsedMs == bestTimeMs);
       DBGF("RESULT", "%s  Fahrer: %s%s  (%luus roh)",
            tbuf, strlen(currentRiderName)>0?currentRiderName:"(kein)",
            isBestF?"  *** BESTZEIT ***":"", (unsigned long)elapsedRaw);
