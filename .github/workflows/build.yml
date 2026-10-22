@@ -1,0 +1,50 @@
+name: Build firmware
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node:
+          - MTB_Timer_Start
+          - MTB_Timer_Start_LILYGO
+          - MTB_Timer_Start_LUFT
+          - MTB_Timer_Finish
+          - MTB_Timer_Finish_LILYGO
+          - MTB_Timer_Finish_LUFT
+          - MTB_Timer_Split
+          - MTB_Timer_Split_LILYGO
+          - MTB_Timer_Split_LUFT
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('**/platformio.ini') }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build ${{ matrix.node }}
+        run: tools/build_all.sh ${{ matrix.node }}
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.node }}
+          path: ${{ matrix.node }}/.pio/build/*/firmware.bin
+          if-no-files-found: error

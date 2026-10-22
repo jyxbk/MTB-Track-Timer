@@ -3,6 +3,7 @@
 **Wireless timing for MTB Downhill / time trials** with up to three nodes over LoRa 868 MHz.  
 No internet, no mobile network — works completely offline via a local Wi-Fi hotspot.
 
+[![Build firmware](https://github.com/jyxbk/MTB-Track-Timer/actions/workflows/build.yml/badge.svg)](https://github.com/jyxbk/MTB-Track-Timer/actions/workflows/build.yml)
 ![Version](https://img.shields.io/badge/Version-v11-blue)
 ![Hardware](https://img.shields.io/badge/Hardware-Heltec%20%7C%20LILYGO-green)
 ![LoRa](https://img.shields.io/badge/LoRa-868%20MHz-orange)
