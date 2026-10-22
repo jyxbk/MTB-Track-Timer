@@ -139,6 +139,15 @@ static void test_histPhys() {
   TEST_ASSERT_EQUAL_UINT8(19, mtb::histPhys(0, 20, 19, 20));
 }
 
+// ── Version ────────────────────────────────────────────────
+static void test_version_consistent() {
+  char full[16], shrt[8];
+  snprintf(full, sizeof(full), "%d.%d.%d", MTB_FW_VERSION_MAJOR, MTB_FW_VERSION_MINOR, MTB_FW_VERSION_PATCH);
+  snprintf(shrt, sizeof(shrt), "v%d.%d", MTB_FW_VERSION_MAJOR, MTB_FW_VERSION_MINOR);
+  TEST_ASSERT_EQUAL_STRING(full, MTB_FW_VERSION);
+  TEST_ASSERT_EQUAL_STRING(shrt, MTB_FW_VERSION_SHORT);
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_fmtTime);
@@ -155,5 +164,6 @@ int main(int, char**) {
   RUN_TEST(test_stagResultMs);
   RUN_TEST(test_rxReferenceUs);
   RUN_TEST(test_histPhys);
+  RUN_TEST(test_version_consistent);
   return UNITY_END();
 }

@@ -1,5 +1,5 @@
 // ============================================================
-//  SPLIT-NODE  v21  –  LILYGO TTGO T3 V1.6.1 (ESP32 + SX1276)
+//  SPLIT-NODE  (Version: lib/mtb_common/src/mtb_version.h)  –  LILYGO TTGO T3 V1.6.1 (ESP32 + SX1276)
 //  MTB Downhill Zeitmessung
 //  Bibliotheken: RadioLib >= 6.6, U8g2 >= 2.35, SD (Arduino Core)
 // ============================================================
@@ -333,12 +333,12 @@ void setup() {
   server.on("/sdformat",handleSdFormat);
   server.begin();
 
-  DBG("BOOT",  "SPLIT-NODE LILYGO v21 bereit");
+  DBG("BOOT",  "SPLIT-NODE LILYGO " MTB_FW_VERSION_SHORT " bereit");
   DBGF("WIFI",  "SSID: %s  IP: %s", cfg_ap_ssid, WiFi.softAPIP().toString().c_str());
   DBGF("SD",    "%s", sdPresent?"vorhanden":"nicht eingelegt");
 
   u8g2.clearBuffer();u8g2.setFont(u8g2_font_7x13B_tf);u8g2.drawStr(4,18,"MTB TIMER");
-  u8g2.setFont(u8g2_font_6x10_tf);u8g2.drawStr(4,32,"SPLIT  LILYGO v21");
+  u8g2.setFont(u8g2_font_6x10_tf);u8g2.drawStr(4,32,"SPLIT  LILYGO " MTB_FW_VERSION_SHORT);
   u8g2.drawHLine(0,36,128);char wln[24];snprintf(wln,sizeof(wln),"WiFi: %.16s",cfg_ap_ssid);
   u8g2.drawStr(0,48,wln);u8g2.drawStr(0,60,sdPresent?"IP: 192.168.4.1 SD":"IP: 192.168.4.1");
   u8g2.sendBuffer();delay(2500);lastPageAt=millis();drawDisplay();

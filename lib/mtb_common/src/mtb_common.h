@@ -13,6 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "mtb_version.h"
+
 namespace mtb {
 
 // Obergrenze für Zeiten in LoRa-Nachrichten (1 h in µs)

@@ -475,6 +475,7 @@ String buildHTML() {
     "&#127760; IP: <span style='color:#aaa'>192.168.4.1</span>"
     "</div></div>"
     "<div class='c'><div class='shdr'>&#128640; Firmware &amp; Ger&auml;t</div>"
+    "<div style='font-size:.8em;color:#777;margin-bottom:8px'>Version " MTB_FW_VERSION "</div>"
     "<div style='display:flex;gap:8px;flex-wrap:wrap'>"
     "<a class='btn' style='background:#1f1a00;color:#ff9800' href='/restart' "
     "onclick=\"return confirm('Ger\\u00e4t neu starten?')\">&#128260; Neustart</a>"

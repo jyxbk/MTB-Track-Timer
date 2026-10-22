@@ -73,7 +73,13 @@ Doku auf den tatsächlichen Stand bringen.
   - Gegencheck: absichtlich falsches Vorzeichen in `compensatedMs` → 2 Tests schlagen fehl
   - CI: Job `test` (installiert `g++-multilib`), läuft vor/parallel zu den Firmware-Builds
   - lokal: `PLATFORMIO_CORE_DIR=$PWD/.pio-core .venv/bin/pio test -d tests`
-- [ ] 7. Versionierung vereinheitlichen (eine zentrale Versionskonstante, Bootlog/OLED/Web-UI daraus)
+- [x] 7. Versionierung vereinheitlichen (eine zentrale Versionskonstante, Bootlog/OLED/Web-UI daraus)
+  - `lib/mtb_common/src/mtb_version.h`: `MTB_FW_VERSION` "12.0.0", `MTB_FW_VERSION_SHORT` "v12.0"
+    (+ MAJOR/MINOR/PATCH); wird über `mtb_common.h` eingebunden
+  - Bootlog und OLED-Startbild aller 9 Varianten nutzen die Konstante; Web-UI zeigt
+    „Version 12.0.0“ in Einstellungen → Firmware & Gerät; Kopfkommentare verweisen auf die Datei
+  - Test `test_version_consistent` prüft, dass die Strings zu MAJOR/MINOR/PATCH passen
+  - geprüft: Versionsstrings stehen in allen 9 `firmware.bin`; README-Badge v12.0
 - [ ] 8. Doku aktualisieren: README (Build mit PlatformIO für alle Varianten, CI-Badge, Versionen),
       Bedienungsanleitung abgleichen, CHANGELOG anlegen
 - [ ] 9. Abschluss: alles gepusht, Wiki-Projektseite `projekt-mtb-track-timer` aktualisieren
@@ -104,6 +110,9 @@ Doku auf den tatsächlichen Stand bringen.
 - Geteilte Bibliothek: Arduino IDE findet `lib/mtb_common` nicht automatisch → einmalig in den
   Arduino-`libraries`-Ordner kopieren (README). Bewusst keine Kopie je Sketch-Ordner (eine Quelle).
   Hardwarenahe Teile (Radio, Display, Web-UI) bleiben vorerst je Variante – zu riskant ohne Hardwaretest.
+- Versionsnummer 12.0.0: Nachfolger des letzten Tags `v11.0`; ersetzt die bisherigen Einzelstände
+  (Start v21/LILYGO v24/LUFT v1–v6, Finish v20, Split v21). Eine Version für alle Knoten, weil alle
+  zusammen ausgeliefert werden und dasselbe Protokoll sprechen. Kein Tag/Release ohne Rückfrage.
 - Build lokal: `export PLATFORMIO_CORE_DIR=$PWD/.pio-core; .venv/bin/pio run -d <Ordner>`
   (erster Build lädt Toolchain, ~5 min). `.venv/` und `.pio-core/` sind in `.gitignore`.
 

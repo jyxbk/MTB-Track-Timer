@@ -1,5 +1,5 @@
 // ============================================================
-//  FINISH-NODE  v20  –  LILYGO TTGO T3 V1.6.1 (ESP32 + SX1276)
+//  FINISH-NODE  (Version: lib/mtb_common/src/mtb_version.h)  –  LILYGO TTGO T3 V1.6.1 (ESP32 + SX1276)
 //  MTB Downhill Zeitmessung
 //  Bibliotheken: RadioLib >= 6.6, U8g2 >= 2.35, SD (Arduino Core)
 // ============================================================
@@ -400,14 +400,14 @@ void setup() {
   server.on("/sdformat",      handleSdFormat);
   server.begin();
 
-  DBG("BOOT",  "FINISH-NODE LILYGO v20 bereit");
+  DBG("BOOT",  "FINISH-NODE LILYGO " MTB_FW_VERSION_SHORT " bereit");
   DBGF("WIFI",  "SSID: %s  IP: %s", cfg_ap_ssid, WiFi.softAPIP().toString().c_str());
   DBGF("CFG",   "Entprell=%ums  Timeout=%ums  Comp=%ums  Retry=%ums/#%u",
        cfg_debounce_ms, cfg_run_timeout_ms, cfg_lora_comp_ms, cfg_retry_interval, cfg_max_retries);
   DBGF("SD",    "%s", sdPresent ? "vorhanden" : "nicht eingelegt");
 
   u8g2.clearBuffer(); u8g2.setFont(u8g2_font_7x13B_tf); u8g2.drawStr(4,18,"MTB TIMER");
-  u8g2.setFont(u8g2_font_6x10_tf); u8g2.drawStr(4,32,"FINISH LILYGO v20");
+  u8g2.setFont(u8g2_font_6x10_tf); u8g2.drawStr(4,32,"FINISH LILYGO " MTB_FW_VERSION_SHORT);
   u8g2.drawHLine(0,36,128);
   char wln[24]; snprintf(wln,sizeof(wln),"WiFi: %.16s",cfg_ap_ssid);
   u8g2.drawStr(0,48,wln); u8g2.drawStr(0,60,sdPresent?"IP: 192.168.4.1 SD":"IP: 192.168.4.1");

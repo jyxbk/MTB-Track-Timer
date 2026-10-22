@@ -1,5 +1,5 @@
 // ============================================================
-//  SPLIT-NODE  LUFT v2
+//  SPLIT-NODE  LUFT  (Version: lib/mtb_common/src/mtb_version.h)
 //  MTB Downhill Zeitmessung – Heltec WiFi LoRa 32 V3
 //  Sensor: BMP280 Luftdrucksensor in geschlossenem Schlauch
 //  Bibliotheken: RadioLib >= 6.6, U8g2 >= 2.35, Adafruit BMP280
@@ -428,7 +428,7 @@ void setup() {
   u8g2.setFont(u8g2_font_7x13B_tf);
   u8g2.drawStr(10, 18, "MTB TIMER");
   u8g2.setFont(u8g2_font_6x10_tf);
-  u8g2.drawStr(10, 32, "SPLIT LUFT v2");
+  u8g2.drawStr(10, 32, "SPLIT LUFT " MTB_FW_VERSION_SHORT);
   u8g2.drawHLine(0, 36, 128);
   char wln[24]; snprintf(wln, sizeof(wln), "WiFi: %.16s", cfg_ap_ssid);
   u8g2.drawStr(0, 48, wln);

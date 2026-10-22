@@ -1,5 +1,5 @@
 // ============================================================
-//  START-NODE  v24  –  LILYGO TTGO T3 V1.6.1 (ESP32-PICO-D4 + SX1276)
+//  START-NODE  (Version: lib/mtb_common/src/mtb_version.h)  –  LILYGO TTGO T3 V1.6.1 (ESP32-PICO-D4 + SX1276)
 //  MTB Downhill Zeitmessung
 //
 //  Arduino IDE Board: "TTGO LoRa32-OLED"
@@ -506,7 +506,7 @@ void setupBtn2() {
 void setup() {
   Serial.begin(115200);
   delay(200);
-  DBG("BOOT", "START-NODE LILYGO v24 startet...");
+  DBG("BOOT", "START-NODE LILYGO " MTB_FW_VERSION_SHORT " startet...");
 
   prefs.begin("mtb-cfg-l", true);
   cfg_debounce_ms    = prefs.getUInt("debounce",   500);
@@ -642,7 +642,7 @@ void setup() {
   server.on("/bestlist",      handleBestlist);
   server.begin();
 
-  DBG("BOOT",  "START-NODE LILYGO v24 bereit");
+  DBG("BOOT",  "START-NODE LILYGO " MTB_FW_VERSION_SHORT " bereit");
   DBGF("WIFI",  "SSID: %s  IP: %s", cfg_ap_ssid, WiFi.softAPIP().toString().c_str());
   DBGF("CFG",   "Plate=GPIO%u  Btn2=GPIO%u  AutoPage=%lums",
        cfg_plate_pin,
@@ -654,7 +654,7 @@ void setup() {
   u8g2.setFont(u8g2_font_7x13B_tf);
   u8g2.drawStr(4, 18, "MTB TIMER");
   u8g2.setFont(u8g2_font_6x10_tf);
-  u8g2.drawStr(4, 32, "START  LILYGO v24");
+  u8g2.drawStr(4, 32, "START  LILYGO " MTB_FW_VERSION_SHORT);
   u8g2.drawHLine(0, 36, 128);
   char wln[24]; snprintf(wln, sizeof(wln), "WiFi: %.16s", cfg_ap_ssid);
   u8g2.drawStr(0, 48, wln);

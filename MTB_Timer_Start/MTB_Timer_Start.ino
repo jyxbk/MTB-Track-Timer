@@ -1,5 +1,5 @@
 // ============================================================
-//  START-NODE  v21
+//  START-NODE  (Version: lib/mtb_common/src/mtb_version.h)
 //  MTB Downhill Zeitmessung – Heltec WiFi LoRa 32 V3
 //  Bibliotheken: RadioLib >= 6.6, U8g2 >= 2.35
 // ============================================================
@@ -538,7 +538,7 @@ void setup() {
   server.on("/ping",          handleManualPing);
   server.begin();
 
-  DBG("BOOT",  "START-NODE v21 bereit");
+  DBG("BOOT",  "START-NODE " MTB_FW_VERSION_SHORT " bereit");
   DBGF("WIFI",  "SSID: %s  IP: %s", cfg_ap_ssid, WiFi.softAPIP().toString().c_str());
   DBGF("CFG",   "Entprell=%ums  Timeout=%ums  Comp=%ums  Ping=%ums",
        cfg_debounce_ms, cfg_run_timeout_ms, cfg_lora_comp_ms, cfg_ping_ms);
@@ -549,7 +549,7 @@ void setup() {
   u8g2.setFont(u8g2_font_7x13B_tf);
   u8g2.drawStr(10, 18, "MTB TIMER");
   u8g2.setFont(u8g2_font_6x10_tf);
-  u8g2.drawStr(10, 32, "START NODE v21");
+  u8g2.drawStr(10, 32, "START NODE " MTB_FW_VERSION_SHORT);
   u8g2.drawHLine(0, 36, 128);
   char wln[24]; snprintf(wln, sizeof(wln), "WiFi: %.16s", cfg_ap_ssid);
   u8g2.drawStr(0, 48, wln);
