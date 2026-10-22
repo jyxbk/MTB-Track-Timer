@@ -37,7 +37,9 @@ Doku auf den tatsächlichen Stand bringen.
   - [x] Leere DBG-Makros → `do {} while (0)` (Warnung „empty body“ in `if/else`-Ketten)
   - Restliche Warnungen (Format-Truncation in display/web, `%u` mit `uint32_t`, unbenutztes `isBest`,
     IRAM-Attribut doppelt durch .ino-Prototypen) → in Aufgabe 4 prüfen
-- [ ] 3. GitHub-Actions-Workflow: alle Varianten bei jedem Push bauen (Firmware als Artefakt)
+- [x] 3. GitHub-Actions-Workflow: alle Varianten bei jedem Push bauen (Firmware als Artefakt)
+  - `.github/workflows/build.yml`: Matrix über 9 Ordner, ruft `tools/build_all.sh <Ordner>`,
+    lädt `firmware.bin` je Variante als Artefakt hoch; Build-Badge in README. Erster Lauf grün (~3 min).
 - [ ] 4. Code-Review der Kernlogik (ISR/Entprellung, Zeitberechnung, Überläufe, LoRa-Parsing,
       Web-Handler-Eingaben, Puffergrößen) → gefundene Fehler in allen betroffenen Varianten beheben
 - [ ] 5. Gemeinsame, hardwarefreie Logik in eine geteilte Bibliothek (`lib/mtb_common`:
