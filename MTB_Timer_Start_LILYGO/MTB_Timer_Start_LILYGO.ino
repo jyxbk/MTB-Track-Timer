@@ -36,6 +36,7 @@
 #include <SD.h>
 #include "esp_sleep.h"
 #include "esp_timer.h"
+#include <mtb_common.h>   // geteilte Logik: lib/mtb_common
 
 // ESP32 Arduino Core 3.x Kompatibilität
 #ifndef HSPI
@@ -339,33 +340,11 @@ void handleSdStats();    void handleBestlist();
 void handleSdClearAll();
 
 // ── Hilfsfunktionen ────────────────────────────────────────
-void fmtTime(unsigned long ms, char* out) {
-  snprintf(out, 12, "%02u:%02u.%03u",
-    (unsigned)(ms / 60000),
-    (unsigned)((ms % 60000) / 1000),
-    (unsigned)(ms % 1000));
-}
+using mtb::fmtTime;
 
-void fmtUptime(char* out) {
-  unsigned long s = millis() / 1000;
-  unsigned long m = s / 60; s %= 60;
-  unsigned long h = m / 60; m %= 60;
-  sprintf(out, "%lu:%02lu:%02lu", h, m, s);
-}
+void fmtUptime(char* out) { mtb::fmtDuration(millis() / 1000, out); }
 
-uint8_t voltageToPct(float v) {
-  static const float vpts[] = {3.00f, 3.20f, 3.30f, 3.40f, 3.50f, 3.60f, 3.70f};
-  static const float ppts[] = {  0,      2,     8,    20,    40,    60,   100};
-  if (v >= 3.70f) return 100;
-  if (v <  3.00f) return 0;
-  for (int i = 1; i < 7; i++) {
-    if (v < vpts[i]) {
-      float frac = (v - vpts[i-1]) / (vpts[i] - vpts[i-1]);
-      return (uint8_t)(ppts[i-1] + frac * (ppts[i] - ppts[i-1]));
-    }
-  }
-  return 0;
-}
+using mtb::voltageToPct;
 
 int64_t nowUnixMs() {
   return timeIsSynced ? (int64_t)millis() + timeOffsetMs : 0;
@@ -385,7 +364,7 @@ String htmlEsc(const char* s) {
 }
 
 static inline uint8_t histPhys(uint8_t i) {
-  return (uint8_t)((histHead + MAX_HISTORY - historyCnt + i) % MAX_HISTORY);
+  return mtb::histPhys(histHead, historyCnt, i, MAX_HISTORY);
 }
 
 void addHistory(unsigned long t, const char* name) {
@@ -865,10 +844,8 @@ void loop() {
 
       if (msg.startsWith("TIM:") && stagMode && stagStarted > 0 && stagFinished < stagCount) {
         finishLastContact = now;
-        char* ep; unsigned long raw_us = strtoul(msg.c_str() + 4, &ep, 10);
-        if (ep != msg.c_str() + 4 && raw_us > 0 && raw_us <= 3600000000UL) {
-          unsigned long t = (raw_us + 500UL) / 1000UL;
-          t += cfg_lora_comp_ms;  // Zusatzkorrektur
+        unsigned long raw_us;
+        if (mtb::parseUsPayload(msg.c_str(), "TIM:", raw_us)) {
           // FIFO: ältester nicht-fertiger Fahrer
           uint8_t k = 0xFF;
           for (uint8_t i = 0; i < stagStarted; i++) {
@@ -877,8 +854,7 @@ void loop() {
           if (k != 0xFF) {
             // Zeitkorrektur falls Finish für anderen Fahrer gewappnet war
             // Ziel misst ab dem zuletzt gesendeten STX → auf den Start von Fahrer k umrechnen
-            long corr = (long)(stagArmRefMs - stagStartMs[k]);
-            if (corr > 0 && (unsigned long)corr < 3600000UL) t += (unsigned long)corr;
+            unsigned long t = mtb::stagResultMs(raw_us, stagArmRefMs, stagStartMs[k], cfg_lora_comp_ms);
             stagTimes[k] = t;
             stagFinishedMask |= (1u << k);
             stagFinished++;
@@ -909,10 +885,9 @@ void loop() {
         }
       } else if (msg.startsWith("TIM:") && appState == RUNNING) {
         finishLastContact = now;
-        char* ep; unsigned long t = strtoul(msg.c_str() + 4, &ep, 10);
-        if (ep != msg.c_str() + 4 && t > 0 && t <= 3600000000UL) {
-          t += stxLagUs + cfg_lora_comp_ms * 1000UL;  // Funklaufzeit STX (gemessen) + Zusatzkorrektur
-          t = (t + 500UL) / 1000UL;
+        unsigned long t;  // µs (Rohwert) → ms (kompensiert)
+        if (mtb::parseUsPayload(msg.c_str(), "TIM:", t)) {
+          t = mtb::compensatedMs(t, stxLagUs, cfg_lora_comp_ms);
           const char* riderName = (duelMode && duelCurrent < duelCount) ? duelRiders[duelCurrent] : "";
           lastTimeMs = t;
           if (bestTimeMs == 0 || t < bestTimeMs) bestTimeMs = t;
@@ -937,10 +912,9 @@ void loop() {
       }
       if (msg.startsWith("SPL:") && appState == RUNNING) {
         splitLastContact = now;
-        char* ep; unsigned long t = strtoul(msg.c_str() + 4, &ep, 10);
-        if (ep != msg.c_str() + 4 && t > 0 && t <= 3600000000UL) {
-          t += stxLagUs + cfg_lora_comp_ms * 1000UL;  // Funklaufzeit STX (gemessen) + Zusatzkorrektur
-          t = (t + 500UL) / 1000UL;
+        unsigned long t;  // µs (Rohwert) → ms (kompensiert)
+        if (mtb::parseUsPayload(msg.c_str(), "SPL:", t)) {
+          t = mtb::compensatedMs(t, stxLagUs, cfg_lora_comp_ms);
           splitTimeMs = t; splitRxAt = now; loRaSend("ACK");
           char tbuf[12]; fmtTime(t, tbuf);
           DBGF("SPLIT", "%s  (comp=+%lums gerundet)", tbuf, cfg_lora_comp_ms);

@@ -115,10 +115,15 @@ pio device monitor --baud 115200
 ### LILYGO (Arduino IDE)
 
 ```
-Board:         TTGO LoRa32-OLED
-Upload Speed:  115200
-Port:          COMxx  (CH9102 driver required)
+Board:            TTGO LoRa32-OLED
+Partition Scheme: Minimal SPIFFS (1.9MB APP with OTA)
+Upload Speed:     115200
+Port:             COMxx  (CH9102 driver required)
 ```
+
+All nodes use the shared header library [`lib/mtb_common`](lib/mtb_common) (PlatformIO links it
+automatically). For the Arduino IDE, install it once: copy the folder `lib/mtb_common` into your
+Arduino `libraries` folder (or zip it and use *Sketch → Include Library → Add .ZIP Library*).
 
 > **Manual download mode** if auto-reset fails:  
 > Hold BOOT → press RST briefly → release BOOT → start upload

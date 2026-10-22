@@ -128,7 +128,7 @@ void sendHTML() {
   String html;
   html.reserve(16384);
 
-  char upBuf[12]; fmtUptime(upBuf);
+  char upBuf[14]; fmtUptime(upBuf);
   unsigned long now   = millis();
   unsigned long since = (loraLastContact > 0) ? (now - loraLastContact) / 1000 : 9999;
   bool peerOk = loraLastContact > 0 && since < (cfg_ping_ms * 3 / 1000);

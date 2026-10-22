@@ -57,9 +57,15 @@ Doku auf den tatsächlichen Stand bringen.
       18× `__VA_ARGS__`-Hinweis aus der .ino→.cpp-Umwandlung
     - Geprüft ohne Befund: Plattenen-ISR (erste Flanke, 64-bit-Zeitstempel mit Spinlock), TIM/SPL-Parsing
       (strtoul + Bereichsprüfung), Ringpuffer der Historie, HTML-Escaping in Seiten und Verlauf
-- [ ] 5. Gemeinsame, hardwarefreie Logik in eine geteilte Bibliothek (`lib/mtb_common`:
+- [x] 5. Gemeinsame, hardwarefreie Logik in eine geteilte Bibliothek (`lib/mtb_common`:
       Protokoll formatieren/parsen, Zeitformatierung, Kompensation) auslagern und von allen
       Varianten nutzen lassen
+  - `lib/mtb_common/src/mtb_common.h` (header-only, namespace `mtb`, ohne Arduino-Abhängigkeit):
+    `fmtTime`, `fmtDuration`, `voltageToPct`, `parseUsPayload` (TIM/SPL), `parseTsy`, `stxRiderName`,
+    `compensatedMs`, `stagResultMs`, `rxReferenceUs`, `histPhys`
+  - Alle 9 Varianten nutzen sie (Einbindung per `symlink://../lib/mtb_common` in `platformio.ini`);
+    ersetzt ~200 duplizierte Zeilen. Alle 9 bauen, Warnungszahl unverändert (98).
+  - `upBuf` in den Web-Seiten von 12 auf 14 Byte (passend zu `fmtDuration`)
 - [ ] 6. Native Unit-Tests (`pio test -e native`, Unity) für die geteilte Bibliothek; in CI aufnehmen
 - [ ] 7. Versionierung vereinheitlichen (eine zentrale Versionskonstante, Bootlog/OLED/Web-UI daraus)
 - [ ] 8. Doku aktualisieren: README (Build mit PlatformIO für alle Varianten, CI-Badge, Versionen),
@@ -89,6 +95,9 @@ Doku auf den tatsächlichen Stand bringen.
 - Versetzter Start (Stag): Ziel wird beim Neu-Scharfschalten (Re-Arm-STX nach ACK) auf eine neue Referenz
   gesetzt; die Startseite rechnete danach nicht mehr korrekt um (Zeit zu kurz). Jetzt einheitlich:
   `t = Ziel-Messung + (Sendeende des letzten STX − Startzeit Fahrer k)`; Startzeit = ISR-Zeit der Platte.
+- Geteilte Bibliothek: Arduino IDE findet `lib/mtb_common` nicht automatisch → einmalig in den
+  Arduino-`libraries`-Ordner kopieren (README). Bewusst keine Kopie je Sketch-Ordner (eine Quelle).
+  Hardwarenahe Teile (Radio, Display, Web-UI) bleiben vorerst je Variante – zu riskant ohne Hardwaretest.
 - Build lokal: `export PLATFORMIO_CORE_DIR=$PWD/.pio-core; .venv/bin/pio run -d <Ordner>`
   (erster Build lädt Toolchain, ~5 min). `.venv/` und `.pio-core/` sind in `.gitignore`.
 

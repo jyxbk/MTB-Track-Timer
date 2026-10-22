@@ -86,7 +86,7 @@ String buildHTML() {
   String html;
   html.reserve(12288);
 
-  char upBuf[12]; fmtUptime(upBuf);
+  char upBuf[14]; fmtUptime(upBuf);
   unsigned long now   = millis();
   unsigned long since = (loraLastContact > 0) ? (now - loraLastContact) / 1000 : 9999;
   bool peerOk = loraLastContact > 0 && since < PEER_TIMEOUT_S;

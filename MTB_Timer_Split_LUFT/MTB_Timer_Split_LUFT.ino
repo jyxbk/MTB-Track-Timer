@@ -33,6 +33,7 @@
 #include <Adafruit_BMP280.h>
 #include "esp_sleep.h"
 #include "esp_timer.h"
+#include <mtb_common.h>   // geteilte Logik: lib/mtb_common
 
 // Forward-Declarations
 void drawDisplay(unsigned long liveMs = 0);
@@ -185,40 +186,17 @@ IRAM_ATTR void onLoRaRx() { rxAtUs = (uint64_t)esp_timer_get_time(); rxFlag = tr
 
 // Referenzzeit für STX: Interrupt-Zeitstempel, falls plausibel (< 1 s alt), sonst jetzt
 static inline uint64_t rxStartUs(uint64_t rxUs) {
-  uint64_t nowUs = (uint64_t)esp_timer_get_time();
-  return (rxUs > 0 && rxUs <= nowUs && nowUs - rxUs < 1000000ULL) ? rxUs : nowUs;
+  return mtb::rxReferenceUs(rxUs, (uint64_t)esp_timer_get_time());
 }
 
 volatile bool btn2Flag = false;
 IRAM_ATTR void onBtn2() { btn2Flag = true; }
 
-void fmtTime(unsigned long ms, char* out) {
-  snprintf(out, 12, "%02u:%02u.%03u",
-    (unsigned)(ms / 60000),
-    (unsigned)((ms % 60000) / 1000),
-    (unsigned)(ms % 1000));
-}
+using mtb::fmtTime;
 
-void fmtUptime(char* out) {
-  unsigned long s = millis() / 1000;
-  unsigned long m = s / 60; s %= 60;
-  unsigned long h = m / 60; m %= 60;
-  sprintf(out, "%lu:%02lu:%02lu", h, m, s);
-}
+void fmtUptime(char* out) { mtb::fmtDuration(millis() / 1000, out); }
 
-uint8_t voltageToPct(float v) {
-  static const float vpts[] = {3.00f, 3.20f, 3.30f, 3.40f, 3.50f, 3.60f, 3.70f};
-  static const float ppts[] = {  0,      2,     8,    20,    40,    60,   100};
-  if (v >= 3.70f) return 100;
-  if (v <  3.00f) return 0;
-  for (int i = 1; i < 7; i++) {
-    if (v < vpts[i]) {
-      float frac = (v - vpts[i-1]) / (vpts[i] - vpts[i-1]);
-      return (uint8_t)(ppts[i-1] + frac * (ppts[i] - ppts[i-1]));
-    }
-  }
-  return 0;
-}
+using mtb::voltageToPct;
 
 int64_t nowUnixMs() {
   return timeIsSynced ? (int64_t)millis() + timeOffsetMs : 0;
@@ -231,7 +209,7 @@ const char* rssiStatus(float rssi) {
 }
 
 static inline uint8_t histPhys(uint8_t i) {
-  return (uint8_t)((histHead + MAX_HISTORY - historyCnt + i) % MAX_HISTORY);
+  return mtb::histPhys(histHead, historyCnt, i, MAX_HISTORY);
 }
 
 void addHistory(unsigned long t, const char* name) {
@@ -551,8 +529,8 @@ void loop() {
       if (msg == "ACK" && appState == DONE) ackReceived = true;
       if (msg == "PNG") loRaSend("POG");
       if (msg.startsWith("TSY:")) {
-        int64_t rxTs = (int64_t)atoll(msg.c_str() + 4);
-        if (rxTs > 1000000000000LL) {
+        int64_t rxTs;
+        if (mtb::parseTsy(msg.c_str(), rxTs)) {
           timeOffsetMs = rxTs - (int64_t)millis();
           timeIsSynced = true;
           lastSyncAt   = millis();

@@ -34,6 +34,7 @@
 #include <SD.h>
 #include "esp_sleep.h"
 #include "esp_timer.h"
+#include <mtb_common.h>   // geteilte Logik: lib/mtb_common
 
 #ifndef HSPI
 #define HSPI 2
@@ -205,8 +206,7 @@ IRAM_ATTR void onLoRaRx() { rxAtUs = (uint64_t)esp_timer_get_time(); rxFlag = tr
 
 // Referenzzeit für STX: Interrupt-Zeitstempel, falls plausibel (< 1 s alt), sonst jetzt
 static inline uint64_t rxStartUs(uint64_t rxUs) {
-  uint64_t nowUs = (uint64_t)esp_timer_get_time();
-  return (rxUs > 0 && rxUs <= nowUs && nowUs - rxUs < 1000000ULL) ? rxUs : nowUs;
+  return mtb::rxReferenceUs(rxUs, (uint64_t)esp_timer_get_time());
 }
 
 volatile bool btn2Flag = false;
@@ -235,24 +235,9 @@ void sdClear();
 void handleSdFormat();
 
 // ── Hilfsfunktionen ────────────────────────────────────────
-void fmtTime(unsigned long ms, char* out) {
-  snprintf(out, 12, "%02u:%02u.%03u",
-    (unsigned)(ms / 60000), (unsigned)((ms % 60000) / 1000), (unsigned)(ms % 1000));
-}
-void fmtUptime(char* out) {
-  unsigned long s = millis()/1000, m = s/60; s %= 60;
-  unsigned long h = m/60; m %= 60;
-  sprintf(out, "%lu:%02lu:%02lu", h, m, s);
-}
-uint8_t voltageToPct(float v) {
-  static const float vpts[] = {3.00f,3.20f,3.30f,3.40f,3.50f,3.60f,3.70f};
-  static const float ppts[] = {0,2,8,20,40,60,100};
-  if (v >= 3.70f) return 100; if (v < 3.00f) return 0;
-  for (int i = 1; i < 7; i++) {
-    if (v < vpts[i]) return (uint8_t)(ppts[i-1]+(v-vpts[i-1])/(vpts[i]-vpts[i-1])*(ppts[i]-ppts[i-1]));
-  }
-  return 0;
-}
+using mtb::fmtTime;
+void fmtUptime(char* out) { mtb::fmtDuration(millis() / 1000, out); }
+using mtb::voltageToPct;
 int64_t nowUnixMs() { return timeIsSynced ? (int64_t)millis() + timeOffsetMs : 0; }
 const char* rssiStatus(float r) { return r >= RSSI_BAR5 ? "GUT" : r >= RSSI_BAR3 ? "MITTEL" : "SCHWACH"; }
 static String htmlEsc(const char* s) {
@@ -260,7 +245,7 @@ static String htmlEsc(const char* s) {
 }
 
 static inline uint8_t histPhys(uint8_t i) {
-  return (uint8_t)((histHead + MAX_HISTORY - historyCnt + i) % MAX_HISTORY);
+  return mtb::histPhys(histHead, historyCnt, i, MAX_HISTORY);
 }
 
 void addHistory(unsigned long t, const char* name) {
@@ -493,8 +478,7 @@ void loop() {
       DBGVF("LORA-RX", "\"%s\"  RSSI=%d dBm  SNR=%.1f dB", msg.c_str(), (int)loraRssi, loraSnr);
 
       if (msg.startsWith("STX")) {
-        if (msg.length()>4&&msg[3]==':') { strncpy(currentRiderName,msg.c_str()+4,NAME_MAX_LEN); currentRiderName[NAME_MAX_LEN]='\0'; }
-        else currentRiderName[0]='\0';
+        mtb::stxRiderName(msg.c_str(), currentRiderName, sizeof(currentRiderName));
         startRecvUs = rxStartUs(rxUs); plateFlag=false; retryCnt=0; ackReceived=false; appState=ARMED;
         drawDisplay();
         DBGF("STATE", "ARMED ← STX  Fahrer: %s", strlen(currentRiderName)>0?currentRiderName:"(kein)");
@@ -502,8 +486,8 @@ void loop() {
       if (msg=="ACK"&&appState==DONE) { ackReceived=true; DBG("LORA-RX","ACK – Messung bestätigt"); }
       if (msg=="PNG") { loRaSend("POG"); DBGV("LORA-RX","PNG → POG gesendet"); }
       if (msg.startsWith("TSY:")) {
-        int64_t rxTs = (int64_t)atoll(msg.c_str() + 4);
-        if (rxTs > 1000000000000LL) {
+        int64_t rxTs;
+        if (mtb::parseTsy(msg.c_str(), rxTs)) {
           timeOffsetMs = rxTs - (int64_t)millis();
           timeIsSynced = true; lastSyncAt = millis();
           DBGF("SYNC", "TSY – Zeit synchronisiert (Offset=%lld ms)", timeOffsetMs);
