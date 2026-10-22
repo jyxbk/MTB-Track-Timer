@@ -29,6 +29,11 @@ Doku auf den tatsächlichen Stand bringen.
 - [x] 1. Bestandsaufnahme, Repo übernehmen, PLAN.md anlegen
 - [ ] 2. Build-Umgebung: PlatformIO in `.venv`; `platformio.ini` für LILYGO- und LUFT-Ordner;
       Skript `tools/build_all.sh`, das alle 9 Varianten baut; Kompilierfehler/-warnungen beheben
+  - [x] PlatformIO 6.2.0 in `.venv`, Core-Dir projektlokal `.pio-core` (`PLATFORMIO_CORE_DIR`)
+  - [x] `MTB_Timer_Start` baut erfolgreich (espressif32 8.0.0, Arduino-Core 3.3.x; RAM 15.5 %, Flash 36.8 %)
+  - [ ] Finish/Split (Heltec) bauen
+  - [ ] `platformio.ini` für 3× LILYGO und 3× LUFT anlegen und bauen
+  - [ ] `tools/build_all.sh`; Plattformversion pinnen
 - [ ] 3. GitHub-Actions-Workflow: alle Varianten bei jedem Push bauen (Firmware als Artefakt)
 - [ ] 4. Code-Review der Kernlogik (ISR/Entprellung, Zeitberechnung, Überläufe, LoRa-Parsing,
       Web-Handler-Eingaben, Puffergrößen) → gefundene Fehler in allen betroffenen Varianten beheben
@@ -49,6 +54,8 @@ Doku auf den tatsächlichen Stand bringen.
 - Bestehende Ordnerstruktur (ein Ordner je Variante, `.ino`-Dateien) bleibt erhalten, damit Arduino IDE
   weiter funktioniert; geteilter Code kommt als Header-Bibliothek dazu.
 - Keine Releases/Tags ohne Rückfrage.
+- Build lokal: `export PLATFORMIO_CORE_DIR=$PWD/.pio-core; .venv/bin/pio run -d <Ordner>`
+  (erster Build lädt Toolchain, ~5 min). `.venv/` und `.pio-core/` sind in `.gitignore`.
 
 ## Offene Punkte
 - Hardware-Tests (Flashen, Funkstrecke, Sensoren) kann nur der Nutzer machen.
