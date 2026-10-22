@@ -193,6 +193,10 @@ Browser → Tab **Settings** (gear icon)
 | Capacity (mAh) | For remaining runtime calculation |
 | OLED brightness | 0–255 |
 
+### Firmware
+The installed firmware version (e.g. `12.0.0`) is shown under **Settings → Firmware & Device** and on
+the OLED splash screen after power-on. All nodes should run the same version.
+
 ---
 
 ## 11. Accuracy and Radio Latency
@@ -284,6 +288,18 @@ An external button can be configured via **Settings → Extra button GPIO**. Res
 - Reduce upload speed to **115200** (Settings → Upload Speed)
 - **Hold BOOT** → **press RST** → **release BOOT** → start upload
 - CH9102 driver installed? (Windows may need manual download)
+
+### Arduino IDE: `mtb_common.h: No such file or directory`
+- Install the shared library once: copy `lib/mtb_common` into the Arduino `libraries` folder
+  (or zip it → *Sketch → Include Library → Add .ZIP Library*). PlatformIO does this automatically.
+
+### Sketch too big (LILYGO)
+- Arduino IDE: *Tools → Partition Scheme → Minimal SPIFFS (1.9MB APP with OTA)*.
+  PlatformIO already uses this partition table.
+
+### Times are slightly longer than with older firmware
+- Expected since 12.0.0: the radio latency (typically 30–60 ms) is now added automatically
+  (see section 11). Older firmware measured too short.
 
 ### Wrong time / no timestamps
 - Browser → LoRa tab → press **Synchronise**

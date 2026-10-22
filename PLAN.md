@@ -80,8 +80,16 @@ Doku auf den tatsächlichen Stand bringen.
     „Version 12.0.0“ in Einstellungen → Firmware & Gerät; Kopfkommentare verweisen auf die Datei
   - Test `test_version_consistent` prüft, dass die Strings zu MAJOR/MINOR/PATCH passen
   - geprüft: Versionsstrings stehen in allen 9 `firmware.bin`; README-Badge v12.0
-- [ ] 8. Doku aktualisieren: README (Build mit PlatformIO für alle Varianten, CI-Badge, Versionen),
+- [x] 8. Doku aktualisieren: README (Build mit PlatformIO für alle Varianten, CI-Badge, Versionen),
       Bedienungsanleitung abgleichen, CHANGELOG anlegen
+  - README: Projektstruktur (lib/, tests/, tools/, CI, CHANGELOG), PlatformIO-Schnellstart für alle
+    Varianten, Firmware-Artefakte aus CI inkl. Flash-Hinweis, Bibliotheken (BMP280, mtb_common),
+    Abschnitt Versionierung; Arduino-IDE-Hinweise (Partition, Bibliothek) aus Aufgabe 5
+  - **Korrektur:** README versprach „OTA update via /update“ – gibt es in keiner Variante → entfernt
+  - Bedienungsanleitung: Firmware-Version, Fehlerbehebung (Bibliothek fehlt, Sketch zu groß,
+    Zeiten ab 12.0.0 etwas länger), Abschnitt 11 (Kompensation) bereits in Aufgabe 4a
+  - `CHANGELOG.md` mit 12.0.0 (Fixed/Changed/Added) und Verweis auf v11.0
+  - Root-`platformio.ini`: veraltete Ordnernamen (Node1/Node2) im Kommentar ersetzt
 - [ ] 9. Abschluss: alles gepusht, Wiki-Projektseite `projekt-mtb-track-timer` aktualisieren
 
 ## Entscheidungen
@@ -124,4 +132,7 @@ Doku auf den tatsächlichen Stand bringen.
   (z. B. Fahrer-Index in `TIM`) – nicht ohne Rücksprache.
 - Hardware-Test der neuen Kompensation: Referenzmessung (z. B. Platte Start und Ziel nebeneinander,
   gleichzeitig auslösen → Ergebnis sollte ≈ 0 ms sein) durch den Nutzer.
+- OTA-Update über den Browser (`/update`) war in der README beschrieben, ist aber nicht implementiert.
+  Nachrüsten wäre einfach (`HTTPUpdateServer`), aber jeder im Knoten-WLAN könnte dann flashen
+  (WLAN standardmäßig ohne Passwort) → nur nach Rückfrage, ggf. mit Passwort.
 - LUFT-Variante für LILYGO fehlt (README: „currently only Heltec“) – mögliche spätere Aufgabe.

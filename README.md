@@ -61,10 +61,15 @@ MTB-Track-Timer/
 ├── MTB_Timer_Split/            # Split node        (Heltec, pressure plate)
 ├── MTB_Timer_Split_LILYGO/     # Split node        (LILYGO, pressure plate)
 ├── MTB_Timer_Split_LUFT/       # Split node        (Heltec, air pressure BMP280)
+├── lib/mtb_common/             # Shared header-only library (all nodes) + firmware version
+├── tests/                      # Native unit tests for lib/mtb_common (run on the PC)
+├── tools/build_all.sh          # Build all 9 variants with PlatformIO
+├── .github/workflows/build.yml # CI: unit tests + build of all variants, firmware artifacts
 ├── KONZEPT_LUFT/               # AIR variant concept & planning
 ├── docs/
 │   ├── BEDIENUNGSANLEITUNG.md  # Full user manual
 │   └── MTB_Timer_Preview.html  # Web UI preview (open offline)
+├── CHANGELOG.md                # Version history
 └── platformio.ini              # Root placeholder (flash from subfolders!)
 ```
 
@@ -88,7 +93,7 @@ Each node folder contains:
 - **Lap mode** – unlimited laps, best-time tracking
 - **Split time** – optional third node
 - **SD logging** *(LILYGO)* – tracks, riders, sessions, leaderboard, CSV export
-- **OTA update** – firmware update directly via browser, no USB required
+- **Prebuilt firmware** – every push builds all variants; `firmware.bin` files are downloadable from GitHub Actions
 - **Battery powered** – deep sleep (<1 mA), ~10–14 h runtime with 18650
 - **LoRa diagnostics** – RTT measurement, signal strength
 
@@ -96,21 +101,29 @@ Each node folder contains:
 
 ## Quick Start
 
-### Heltec (PlatformIO)
+### PlatformIO (recommended, all variants)
+
+Every node folder is its own PlatformIO project (Heltec and LILYGO):
 
 ```bash
-# Open subfolder as project, e.g. Start node:
-code MTB_Timer_Start
-
-# Flash
-pio run -t upload
+# Build + flash one node, e.g. the Start node
+pio run -d MTB_Timer_Start -t upload
 
 # Serial monitor
-pio device monitor --baud 115200
+pio device monitor -d MTB_Timer_Start --baud 115200
 
-# OTA update (after first flash)
-# Browser → http://192.168.4.1/update → select .bin
+# Build all 9 variants at once (as CI does)
+tools/build_all.sh
+
+# Run the unit tests of the shared library (64 + 32 bit; 32 bit needs g++-multilib)
+pio test -d tests
 ```
+
+Prebuilt binaries: GitHub → **Actions** → latest *Build firmware* run → **Artifacts**
+(one `firmware.bin` per variant). `firmware.bin` contains only the application: flash it with
+`esptool.py write_flash 0x10000 firmware.bin` onto a node that was flashed once via USB with this
+version (`pio run -t upload` also writes bootloader and partition table – required for LILYGO,
+whose partition table changed to *Minimal SPIFFS*).
 
 ### LILYGO (Arduino IDE)
 
@@ -145,7 +158,12 @@ Arduino `libraries` folder (or zip it and use *Sketch → Include Library → Ad
 | RadioLib | ≥ 6.6.0 | ✓ | ✓ |
 | U8g2 | ≥ 2.35.19 | ✓ | ✓ |
 | SD | (Core) | – | ✓ |
-| WebServer, WiFi, Preferences, Update | (Core) | ✓ | ✓ |
+| Adafruit BMP280 Library | ≥ 2.6.8 | AIR only | – |
+| mtb_common (this repo, `lib/`) | 1.0.0 | ✓ | ✓ |
+| WebServer, WiFi, Preferences | (Core) | ✓ | ✓ |
+
+PlatformIO installs all of them automatically (`lib_deps`). Platform pinned to `espressif32 @ 8.0.0`
+(Arduino core 3.3.x).
 
 ---
 
@@ -186,6 +204,15 @@ Arduino `libraries` folder (or zip it and use *Sketch → Include Library → Ad
 | **Tracks** | Manage tracks/riders, leaderboard, session archive *(LILYGO)* |
 | **LoRa** | Signal strength, RTT measurement, time sync |
 | **Settings** | All configurable parameters |
+
+---
+
+## Versioning
+
+All nodes share one firmware version, defined in
+[`lib/mtb_common/src/mtb_version.h`](lib/mtb_common/src/mtb_version.h) (currently **12.0.0**).
+It is shown on the OLED splash screen, in the boot log and in the web UI (Settings → Firmware).
+Changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
